@@ -65,33 +65,33 @@ def simulacion(
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
 			# Selecciona archivo y siglado
 			if anio == 2018:
-				parquet_path = "data/diputaciones_2018.parquet"
-				siglado_path = "data/ine-cg2018-diputados-siglado-long.parquet"
+				parquet_path = "data/computos_diputados_2018.parquet"
+				siglado_path = "data/siglado_diputados_2018.parquet"
 			elif anio == 2021:
-				parquet_path = "data/diputaciones_2021.parquet"
-				siglado_path = "data/ine-cg466-2021-grupo-parlamentario-por-distrito.parquet"
+				parquet_path = "data/computos_diputados_2021.parquet"
+				siglado_path = "data/siglado_diputados_2021.parquet"
 			elif anio == 2024:
-				parquet_path = "data/dip-fed-2024.parquet"
-				siglado_path = "data/ine-cges2024-grupo-parlamentario-por-distrito.parquet"
+				parquet_path = "data/computos_diputados_2024.parquet"
+				siglado_path = "data/siglado_diputados_2024.parquet"
 			else:
-				parquet_path = "data/diputaciones_2021.parquet"
-				siglado_path = "data/ine-cg466-2021-grupo-parlamentario-por-distrito.parquet"
+				parquet_path = "data/computos_diputados_2021.parquet"
+				siglado_path = "data/siglado_diputados_2021.parquet"
 			seat_chart = procesar_diputados_parquet(
 				parquet_path, partidos_base, anio, path_siglado=siglado_path
 			)
 		elif camara.lower() == "senado":
 			if anio == 2018:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
-				parquet_path = "data/senadurias_2018.parquet"
-				siglado_path = "data/ine-cg2018-senado-siglado-long.parquet"
+				parquet_path = "data/computos_senado_2018.parquet"
+				siglado_path = "data/siglado_senado_2018.parquet"
 			elif anio == 2024:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
-				parquet_path = "data/sen-2024.parquet"
-				siglado_path = "data/ine-cges2024-senado-siglado-long.parquet"
+				parquet_path = "data/computos_senado_2024.parquet"
+				siglado_path = "data/siglado_senado_2024.parquet"
 			else:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
-				parquet_path = "data/sen-2024.parquet"
-				siglado_path = "data/ine-cges2024-senado-siglado-long.parquet"
+				parquet_path = "data/computos_senado_2024.parquet"
+				siglado_path = "data/siglado_senado_2024.parquet"
 			senado_res = procesar_senadores_parquet(
 				parquet_path, partidos_base, anio, path_siglado=siglado_path,
 				total_rp_seats=32, umbral=0.03, quota_method=quota_method, divisor_method=divisor_method
