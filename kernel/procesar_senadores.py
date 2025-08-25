@@ -11,7 +11,9 @@ def normalizar_texto(x):
     return x
 
 def normalize_entidad(x):
-    x = normalizar_texto(x)
+    if pd.isnull(x): return ''
+    x = str(x).strip().upper()
+    # Primero reemplazos con acentos
     x = x.replace('MEXICO', 'MÉXICO')
     x = x.replace('NUEVO LEON', 'NUEVO LEÓN')
     x = x.replace('QUERETARO', 'QUERÉTARO')
@@ -23,6 +25,9 @@ def normalize_entidad(x):
     x = x.replace('MICHOACÁN DE OCAMPO', 'MICHOACÁN')
     x = x.replace('VERACRUZ DE IGNACIO DE LA LLAVE', 'VERACRUZ')
     x = x.replace('COAHUILA DE ZARAGOZA', 'COAHUILA')
+    # Luego normaliza a ASCII solo si necesitas comparar internamente, pero para mostrar deja los acentos
+    # x = unicodedata.normalize('NFKD', x).encode('ASCII', 'ignore').decode('ASCII')
+    x = re.sub(r'\s+', ' ', x)
     return x
 
 def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=None, total_rp_seats=32, umbral=0.03, quota_method='hare', divisor_method='dhondt'):
@@ -37,10 +42,22 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
     from .kpi_utils import kpis_votos_escanos
     try:
         print(f"[DEBUG] Leyendo Parquet: {path_parquet}")
-        df = pd.read_parquet(path_parquet)
+        try:
+            df = pd.read_parquet(path_parquet)
+        except Exception as e:
+            print(f"[WARN] Error leyendo Parquet normal, intentando forzar a string y decodificar UTF-8: {e}")
+            import pyarrow.parquet as pq
+            table = pq.read_table(path_parquet)
+            df = table.to_pandas()
+            # Intenta decodificar columnas object/bytes
+            for col in df.columns:
+                if df[col].dtype == object:
+                    df[col] = df[col].apply(lambda x: x.decode('utf-8', errors='replace') if isinstance(x, bytes) else x)
         print(f"[DEBUG] Parquet columnas: {df.columns.tolist()}")
         df.columns = [normalizar_texto(c) for c in df.columns]
         if 'ENTIDAD' in df.columns:
+            # Intenta decodificar cada valor de entidad si es bytes
+            df['ENTIDAD'] = df['ENTIDAD'].apply(lambda x: x.decode('utf-8', errors='replace') if isinstance(x, bytes) else x)
             df['ENTIDAD'] = df['ENTIDAD'].apply(normalize_entidad)
         # Suma votos por partido (por entidad)
         votos_cols = [c for c in df.columns if c in partidos_base]
