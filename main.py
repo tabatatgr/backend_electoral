@@ -31,11 +31,13 @@ from fastapi.responses import JSONResponse
 
 @app.get("/simulacion")
 def simulacion(anio: int, camara: str, modelo: str):
-	# Selecciona el archivo Parquet según la cámara (ruta relativa)
+	# Obtiene el path absoluto de la carpeta actual (donde está main.py)
+	base_dir = os.path.dirname(os.path.abspath(__file__))
+	# Selecciona el archivo Parquet según la cámara (ruta absoluta)
 	if camara.lower() == "senado":
-		parquet_path = "data/senado-resumen-modelos-votos-escanos.parquet"
+		parquet_path = os.path.join(base_dir, "data", "senado-resumen-modelos-votos-escanos.parquet")
 	else:
-		parquet_path = "data/resumen-modelos-votos-escanos-diputados.parquet"
+		parquet_path = os.path.join(base_dir, "data", "resumen-modelos-votos-escanos-diputados.parquet")
 	con = duckdb.connect()
 	query = f'''
 		SELECT partido, asientos_partido, pct_escanos, total_escanos, total_votos, mae_votos_vs_escanos, indice_gallagher
