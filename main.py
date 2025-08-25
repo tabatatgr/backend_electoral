@@ -31,11 +31,11 @@ from fastapi.responses import JSONResponse
 
 @app.get("/simulacion")
 def simulacion(anio: int, camara: str, modelo: str):
-	# Selecciona el archivo Parquet según la cámara
+	# Selecciona el archivo Parquet según la cámara (ruta relativa)
 	if camara.lower() == "senado":
-		parquet_path = r"C:\\Users\\pablo\\OneDrive\\Documentos\\GitHub\\tablero_electoral\\data\\senado-resumen-modelos-votos-escanos.parquet"
+		parquet_path = "data/senado-resumen-modelos-votos-escanos.parquet"
 	else:
-		parquet_path = r"C:\\Users\\pablo\\OneDrive\\Documentos\\GitHub\\tablero_electoral\\data\\resumen-modelos-votos-escanos-diputados.parquet"
+		parquet_path = "data/resumen-modelos-votos-escanos-diputados.parquet"
 	con = duckdb.connect()
 	query = f'''
 		SELECT partido, asientos_partido, pct_escanos, total_escanos, total_votos, mae_votos_vs_escanos, indice_gallagher
