@@ -89,15 +89,28 @@ def simulacion(
 				parquet_path = "data/computos_diputados_2021.parquet"
 				siglado_path = "data/siglado-diputados-2021.csv"
 			try:
-				seat_chart = procesar_diputados_parquet(
+				seat_chart_raw = procesar_diputados_parquet(
 					parquet_path, partidos_base, anio, path_siglado=siglado_path
 				)
-				# KPIs robustos: MAE y Gallagher
-				votos = [p['votos'] for p in seat_chart if 'votos' in p]
-				curules = [p['curules'] for p in seat_chart if 'curules' in p]
+				# Unificar formato de seat_chart
+				total_curules = sum([p['curules'] for p in seat_chart_raw if 'curules' in p]) or 1
+				seat_chart = [
+					{
+						"party": p["partido"],
+						"seats": int(p["curules"]),
+						"color": PARTY_COLORS.get(p["partido"], "#888"),
+						"percent": round(100 * (p["curules"] / total_curules), 2),
+						"votes": int(p["votos"])
+					}
+					for p in seat_chart_raw if int(p["curules"]) > 0
+				]
+				votos = [p['votos'] for p in seat_chart_raw if 'votos' in p]
+				curules = [p['curules'] for p in seat_chart_raw if 'curules' in p]
 				kpis = {
-					'mae_votos_vs_escanos': safe_mae(votos, curules),
-					'indice_gallagher': safe_gallagher(votos, curules)
+					"total_seats": total_curules,
+					"mae_votos_vs_escanos": safe_mae(votos, curules),
+					"gallagher": safe_gallagher(votos, curules),
+					"total_votos": sum(votos)
 				}
 			except Exception as e:
 				import traceback
@@ -122,15 +135,32 @@ def simulacion(
 				parquet_path, partidos_base, anio, path_siglado=siglado_path,
 				total_rp_seats=32, umbral=0.03, quota_method=quota_method, divisor_method=divisor_method
 			)
-			seat_chart = senado_res['salida']
-			kpis = senado_res['kpis']
+			seat_chart_raw = senado_res['salida']
+			total_escanos = sum([p['escanos'] if 'escanos' in p else p.get('curules', 0) for p in seat_chart_raw]) or 1
+			seat_chart = [
+				{
+					"party": p["partido"],
+					"seats": int(p.get("escanos", p.get("curules", 0))),
+					"color": PARTY_COLORS.get(p["partido"], "#888"),
+					"percent": round(100 * (p.get("escanos", p.get("curules", 0)) / total_escanos), 2),
+					"votes": int(p["votos"]) if 'votos' in p else 0
+				}
+				for p in seat_chart_raw if int(p.get("escanos", p.get("curules", 0))) > 0
+			]
+			votos = [p['votos'] for p in seat_chart_raw if 'votos' in p]
+			escanos = [p.get('escanos', p.get('curules', 0)) for p in seat_chart_raw]
+			kpis = {
+				"total_seats": total_escanos,
+				"mae_votos_vs_escanos": safe_mae(votos, escanos),
+				"gallagher": safe_gallagher(votos, escanos),
+				"total_votos": sum(votos)
+			}
 		else:
 			return JSONResponse(
 				content={"error": "Cámara no soportada"},
 				status_code=400,
 				headers={"Access-Control-Allow-Origin": "*"},
 			)
-	# ...existing code...
 			tv = sum(v); ts = sum(s)
 			if tv == 0 or ts == 0: return 0
 			v = [x/tv for x in v]
