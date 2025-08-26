@@ -38,6 +38,18 @@ from kernel.procesar_diputados import procesar_diputados_parquet
 from kernel.procesar_senadores import procesar_senadores_parquet
 from kernel.kpi_utils import kpis_votos_escanos
 
+def safe_mae(v, s):
+	v = [x for x in v if x is not None]
+	s = [x for x in s if x is not None]
+	if not v or not s or len(v) != len(s): return 0
+	return sum(abs(a-b) for a,b in zip(v,s)) / len(v)
+
+def safe_gallagher(v, s):
+	v = [x for x in v if x is not None]
+	s = [x for x in s if x is not None]
+	if not v or not s or len(v) != len(s): return 0
+	return (0.5 * sum((100*(a/(sum(v) or 1)) - 100*(b/(sum(s) or 1)))**2 for a,b in zip(v,s)))**0.5
+
 @app.get("/simulacion")
 def simulacion(
 	anio: int,
@@ -118,16 +130,7 @@ def simulacion(
 				status_code=400,
 				headers={"Access-Control-Allow-Origin": "*"},
 			)
-		# KPIs robustos: MAE y Gallagher
-		def safe_mae(v, s):
-			v = [x for x in v if x is not None]
-			s = [x for x in s if x is not None]
-			if not v or not s or len(v) != len(s): return 0
-			return sum(abs(a-b) for a,b in zip(v,s)) / len(v)
-		def safe_gallagher(v, s):
-			v = [x for x in v if x is not None]
-			s = [x for x in s if x is not None]
-			if not v or not s or len(v) != len(s): return 0
+	# ...existing code...
 			tv = sum(v); ts = sum(s)
 			if tv == 0 or ts == 0: return 0
 			v = [x/tv for x in v]
