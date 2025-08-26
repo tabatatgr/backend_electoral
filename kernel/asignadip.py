@@ -94,24 +94,37 @@ def asignadip_v2(
         print('MR:', s_mr)
         print('RP:', s_rp)
         print('TOT:', s_tot)
-        # --- Ajuste final para respetar magnitud exacta ---
-        total_asignados = sum(s_tot.values())
-        diferencia = max_seats - total_asignados
-        if diferencia != 0:
-            # Ordenar partidos por resto de votos (o aleatorio si empate)
-            partidos_orden = sorted(s_tot.keys(), key=lambda p: votos_ok[p], reverse=True)
-            if diferencia > 0:
-                # Añadir escaños a los partidos con mayor resto
-                for i in range(diferencia):
-                    s_tot[partidos_orden[i % len(partidos_orden)]] += 1
-            else:
-                # Quitar escaños a los partidos con mayor asignación
-                for i in range(-diferencia):
-                    for p in partidos_orden:
-                        if s_tot[p] > 0:
-                            s_tot[p] -= 1
+        # --- Ajuste robusto para respetar magnitud exacta ---
+        total_mr = sum(s_mr.values())
+        if total_mr >= max_seats:
+            # Si MR supera la magnitud, recortar MR y poner RP=0
+            exceso = total_mr - max_seats
+            if exceso > 0:
+                # Recortar MR de los partidos con más MR
+                partidos_mr = sorted(s_mr.keys(), key=lambda p: s_mr[p], reverse=True)
+                for i in range(exceso):
+                    for p in partidos_mr:
+                        if s_mr[p] > 0:
+                            s_mr[p] -= 1
                             break
-        # --- Fin ajuste ---
+            s_rp = {p: 0 for p in s_rp}
+            s_tot = {p: s_mr[p] for p in s_mr}
+        else:
+            # Si MR < magnitud, RP se ajusta para completar el total
+            faltan = max_seats - total_mr
+            # Asignar RP como hasta ahora, pero si la suma de MR+RP supera la magnitud, recortar RP
+            total_rp = sum(s_rp.values())
+            if total_rp > faltan:
+                # Recortar RP de los partidos con más RP
+                partidos_rp = sorted(s_rp.keys(), key=lambda p: s_rp[p], reverse=True)
+                exceso_rp = total_rp - faltan
+                for i in range(exceso_rp):
+                    for p in partidos_rp:
+                        if s_rp[p] > 0:
+                            s_rp[p] -= 1
+                            break
+            s_tot = {p: s_mr[p] + s_rp[p] for p in s_mr}
+        # --- Fin ajuste robusto ---
     return {
         'mr': s_mr,
         'rp': s_rp,

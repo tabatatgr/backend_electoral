@@ -108,4 +108,22 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
     # Independientes
     if indep > 0:
         salida.append({'partido': 'CI', 'votos': indep, 'mr': 0, 'rp': 0, 'curules': indep})
+    # --- Ajuste para que la suma final de curules sea igual a max_seats ---
+    total_curules = sum(x['curules'] for x in salida)
+    diferencia = max_seats - total_curules
+    if diferencia != 0 and len(salida) > 0:
+        # Ordenar partidos por votos (sin CI)
+        partidos_orden = [x for x in salida if x['partido'] != 'CI']
+        partidos_orden.sort(key=lambda x: x['votos'], reverse=True)
+        if diferencia > 0:
+            # Añadir curules a los partidos con más votos
+            for i in range(diferencia):
+                partidos_orden[i % len(partidos_orden)]['curules'] += 1
+        else:
+            # Quitar curules a los partidos con más curules
+            for i in range(-diferencia):
+                for x in partidos_orden:
+                    if x['curules'] > 0:
+                        x['curules'] -= 1
+                        break
     return salida
