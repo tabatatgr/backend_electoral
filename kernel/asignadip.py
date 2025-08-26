@@ -94,6 +94,24 @@ def asignadip_v2(
         print('MR:', s_mr)
         print('RP:', s_rp)
         print('TOT:', s_tot)
+        # --- Ajuste final para respetar magnitud exacta ---
+        total_asignados = sum(s_tot.values())
+        diferencia = max_seats - total_asignados
+        if diferencia != 0:
+            # Ordenar partidos por resto de votos (o aleatorio si empate)
+            partidos_orden = sorted(s_tot.keys(), key=lambda p: votos_ok[p], reverse=True)
+            if diferencia > 0:
+                # Añadir escaños a los partidos con mayor resto
+                for i in range(diferencia):
+                    s_tot[partidos_orden[i % len(partidos_orden)]] += 1
+            else:
+                # Quitar escaños a los partidos con mayor asignación
+                for i in range(-diferencia):
+                    for p in partidos_orden:
+                        if s_tot[p] > 0:
+                            s_tot[p] -= 1
+                            break
+        # --- Fin ajuste ---
     return {
         'mr': s_mr,
         'rp': s_rp,
