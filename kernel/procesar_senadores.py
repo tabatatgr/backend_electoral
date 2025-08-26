@@ -49,33 +49,34 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
         else:
             print(f"[ERROR] El archivo Parquet no existe: {path_parquet}")
         try:
+            print(f"[DEBUG] Leyendo Parquet Senado: {path_parquet}")
             df = pd.read_parquet(path_parquet)
         except Exception as e:
             print(f"[WARN] Error leyendo Parquet normal, intentando forzar a string y decodificar UTF-8: {e}")
             import pyarrow.parquet as pq
             table = pq.read_table(path_parquet)
             df = table.to_pandas()
-            # Intenta decodificar columnas object/bytes
             for col in df.columns:
                 if df[col].dtype == object:
                     df[col] = df[col].apply(lambda x: x.decode('utf-8', errors='replace') if isinstance(x, bytes) else x)
-        print(f"[DEBUG] Parquet columnas: {df.columns.tolist()}")
+        print(f"[DEBUG] Parquet Senado columnas: {df.columns.tolist()}")
+        print(f"[DEBUG] Parquet Senado shape: {df.shape}")
         df.columns = [normalizar_texto(c) for c in df.columns]
         if 'ENTIDAD' in df.columns:
-            # Intenta decodificar cada valor de entidad si es bytes
             df['ENTIDAD'] = df['ENTIDAD'].apply(lambda x: x.decode('utf-8', errors='replace') if isinstance(x, bytes) else x)
             df['ENTIDAD'] = df['ENTIDAD'].apply(normalize_entidad)
-        # Suma votos por partido (por entidad)
         votos_cols = [c for c in df.columns if c in partidos_base]
-        print(f"[DEBUG] Columnas de votos detectadas: {votos_cols}")
+        print(f"[DEBUG] Columnas de votos detectadas Senado: {votos_cols}")
+        if not votos_cols:
+            print(f"[WARN] No se detectaron columnas de votos válidas en Senado. Partidos base: {partidos_base}")
         votos_partido = df[votos_cols].sum().to_dict()
-        # Independientes (si hay columna CI)
+        print(f"[DEBUG] votos_partido Senado: {votos_partido}")
         indep = int(df['CI'].sum()) if 'CI' in df.columns else 0
-        # MR y PM: requiere siglado largo
+        print(f"[DEBUG] Independientes Senado: {indep}")
         mr_list = []
         pm_list = []
         if path_siglado is not None:
-            print(f"[DEBUG] Leyendo siglado: {path_siglado}")
+            print(f"[DEBUG] Leyendo siglado Senado: {path_siglado}")
             if path_siglado.lower().endswith('.csv'):
                 try:
                     sig = pd.read_csv(path_siglado, encoding='utf-8')
@@ -84,8 +85,11 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
                     sig = pd.read_csv(path_siglado, encoding='latin1')
             else:
                 sig = pd.read_parquet(path_siglado)
-            print(f"[DEBUG] Siglado columnas: {sig.columns.tolist()}")
+            print(f"[DEBUG] Siglado Senado columnas: {sig.columns.tolist()}")
+            print(f"[DEBUG] Siglado Senado shape: {sig.shape}")
             sig.columns = [normalizar_texto(c) for c in sig.columns]
+            if 'ENTIDAD_ASCII' not in sig.columns and 'ENTIDAD' not in sig.columns:
+                print(f"[WARN] No existe columna 'ENTIDAD_ASCII' ni 'ENTIDAD' en siglado Senado")
             # Usar 'ENTIDAD_ASCII' si existe, si no 'ENTIDAD'
             if 'ENTIDAD_ASCII' in sig.columns:
                 sig['ENTIDAD'] = sig['ENTIDAD_ASCII']

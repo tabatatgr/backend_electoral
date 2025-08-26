@@ -37,6 +37,7 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
     """
     try:
         try:
+            print(f"[DEBUG] Leyendo Parquet Diputados: {path_parquet}")
             df = pd.read_parquet(path_parquet)
         except Exception as e:
             print(f"[WARN] Error leyendo Parquet normal, intentando forzar a string y decodificar UTF-8: {e}")
@@ -46,6 +47,8 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
             for col in df.columns:
                 if df[col].dtype == object:
                     df[col] = df[col].apply(lambda x: x.decode('utf-8', errors='replace') if isinstance(x, bytes) else x)
+        print(f"[DEBUG] Parquet Diputados columnas: {df.columns.tolist()}")
+        print(f"[DEBUG] Parquet Diputados shape: {df.shape}")
         # Normaliza nombres de columnas
         df.columns = [normalizar_texto(c) for c in df.columns]
         # Normaliza entidad y distrito
@@ -59,31 +62,39 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
         return []
     # Suma votos por partido (solo columnas de partidos)
     votos_cols = [c for c in df.columns if c in partidos_base]
+    print(f"[DEBUG] Columnas de votos detectadas Diputados: {votos_cols}")
+    if not votos_cols:
+        print(f"[WARN] No se detectaron columnas de votos válidas en Diputados. Partidos base: {partidos_base}")
     votos_partido = df[votos_cols].sum().to_dict()
-    # Independientes (si hay columna CI)
+    print(f"[DEBUG] votos_partido Diputados: {votos_partido}")
     indep = int(df['CI'].sum()) if 'CI' in df.columns else 0
-    # MR: si hay siglado, úsalo; si no, proxy por mayor votación en distrito
+    print(f"[DEBUG] Independientes Diputados: {indep}")
     if path_siglado is not None:
+        print(f"[DEBUG] Leyendo siglado Diputados: {path_siglado}")
         sig = pd.read_csv(path_siglado)
+        print(f"[DEBUG] Siglado Diputados columnas: {sig.columns.tolist()}")
+        print(f"[DEBUG] Siglado Diputados shape: {sig.shape}")
         sig.columns = [normalizar_texto(c) for c in sig.columns]
         sig['ENTIDAD'] = sig['ENTIDAD'].apply(normalize_entidad)
         sig['DISTRITO'] = pd.to_numeric(sig['DISTRITO'], errors='coerce').fillna(0).astype(int)
-        # Asume columna 'GRUPO_PARLAMENTARIO' o similar
+        if 'GRUPO_PARLAMENTARIO' not in sig.columns:
+            print(f"[WARN] No existe columna 'GRUPO_PARLAMENTARIO' en siglado Diputados")
         mr = sig.groupby('GRUPO_PARLAMENTARIO').size().to_dict()
+        print(f"[DEBUG] MR Diputados (siglado): {mr}")
     else:
-        # Proxy: partido con más votos en cada distrito
         mr = df.groupby(['ENTIDAD','DISTRITO'])[votos_cols].sum().idxmax(axis=1).value_counts().to_dict()
-    # Alinea MR a partidos_base
+        print(f"[DEBUG] MR Diputados (proxy): {mr}")
     mr_aligned = {p: int(mr.get(p, 0)) for p in partidos_base}
-    # Prepara entrada para orquestador
+    print(f"[DEBUG] MR Diputados alineado: {mr_aligned}")
     votos_ok = {p: int(votos_partido.get(p, 0)) for p in partidos_base}
     ssd = {p: int(mr_aligned.get(p, 0)) for p in partidos_base}
-    # Llama orquestador (parámetros default, puedes parametrizar)
+    print(f"[DEBUG] votos_ok Diputados: {votos_ok}")
+    print(f"[DEBUG] ssd Diputados: {ssd}")
     res = asignadip_v2(
         votos_ok, ssd, indep=indep, nulos=0, no_reg=0, m=200, S=500,
         threshold=0.03, max_seats=300, max_pp=0.08, apply_caps=True
     )
-    # Salida: lista de dicts por partido
+    print(f"[DEBUG] Resultado asignadip_v2: {res}")
     salida = []
     for p in partidos_base:
         salida.append({
