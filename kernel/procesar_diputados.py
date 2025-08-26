@@ -27,7 +27,7 @@ def normalize_entidad(x):
     return x
 
 # --- Procesamiento principal para diputados ---
-def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=None):
+def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=None, max_seats=300):
     """
     Lee y procesa la base Parquet de diputados, regresa dicts listos para el orquestador.
     - path_parquet: ruta al archivo Parquet
@@ -90,9 +90,10 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
     ssd = {p: int(mr_aligned.get(p, 0)) for p in partidos_base}
     print(f"[DEBUG] votos_ok Diputados: {votos_ok}")
     print(f"[DEBUG] ssd Diputados: {ssd}")
+    # Usar max_seats para m, S y max_seats
     res = asignadip_v2(
-        votos_ok, ssd, indep=indep, nulos=0, no_reg=0, m=200, S=500,
-        threshold=0.03, max_seats=300, max_pp=0.08, apply_caps=True
+        votos_ok, ssd, indep=indep, nulos=0, no_reg=0, m=max_seats, S=max_seats,
+        threshold=0.03, max_seats=max_seats, max_pp=0.08, apply_caps=True
     )
     print(f"[DEBUG] Resultado asignadip_v2: {res}")
     salida = []

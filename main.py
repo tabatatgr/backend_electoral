@@ -88,9 +88,11 @@ def simulacion(
 			else:
 				parquet_path = "data/computos_diputados_2021.parquet"
 				siglado_path = "data/siglado-diputados-2021.csv"
+			# Determina magnitud (número de escaños) si viene del frontend
+			max_seats = magnitud if magnitud is not None else 300
 			try:
 				seat_chart_raw = procesar_diputados_parquet(
-					parquet_path, partidos_base, anio, path_siglado=siglado_path
+					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats
 				)
 				# Unificar formato de seat_chart
 				total_curules = sum([p['curules'] for p in seat_chart_raw if 'curules' in p]) or 1
