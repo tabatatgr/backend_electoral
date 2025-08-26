@@ -86,7 +86,20 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
         print(f"[DEBUG] MR Diputados (proxy): {mr}")
     mr_aligned = {p: int(mr.get(p, 0)) for p in partidos_base}
     print(f"[DEBUG] MR Diputados alineado: {mr_aligned}")
-    votos_ok = {p: int(votos_partido.get(p, 0)) for p in partidos_base}
+    # Aplica umbral si está definido en el contexto global (FastAPI lo pasa como parámetro)
+    import inspect
+    frame = inspect.currentframe()
+    umbral = None
+    while frame:
+        if 'umbral' in frame.f_locals and frame.f_locals['umbral'] is not None:
+            umbral = frame.f_locals['umbral']
+            break
+        frame = frame.f_back
+    if umbral is None:
+        umbral = 0.03
+    # Aplica umbral a votos_ok
+    total_votos_validos = sum(votos_partido.values())
+    votos_ok = {p: int(votos_partido.get(p, 0)) if total_votos_validos > 0 and (votos_partido.get(p, 0)/total_votos_validos) >= umbral else 0 for p in partidos_base}
     ssd = {p: int(mr_aligned.get(p, 0)) for p in partidos_base}
     print(f"[DEBUG] votos_ok Diputados: {votos_ok}")
     print(f"[DEBUG] ssd Diputados: {ssd}")
@@ -112,8 +125,8 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
     total_curules = sum(x['curules'] for x in salida)
     diferencia = max_seats - total_curules
     if diferencia != 0 and len(salida) > 0:
-        # Ordenar partidos por votos (sin CI)
-        partidos_orden = [x for x in salida if x['partido'] != 'CI']
+        # Solo partidos que pasaron el umbral (sin CI)
+        partidos_orden = [x for x in salida if x['partido'] != 'CI' and votos_ok[x['partido']] > 0]
         partidos_orden.sort(key=lambda x: x['votos'], reverse=True)
         if diferencia > 0:
             # Añadir curules a los partidos con más votos
