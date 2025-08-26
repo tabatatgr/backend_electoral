@@ -76,9 +76,23 @@ def simulacion(
 			else:
 				parquet_path = "data/computos_diputados_2021.parquet"
 				siglado_path = "data/siglado-diputados-2021.csv"
-			seat_chart = procesar_diputados_parquet(
-				parquet_path, partidos_base, anio, path_siglado=siglado_path
-			)
+			try:
+				seat_chart = procesar_diputados_parquet(
+					parquet_path, partidos_base, anio, path_siglado=siglado_path
+				)
+				# KPIs robustos: MAE y Gallagher
+				votos = [p['votos'] for p in seat_chart if 'votos' in p]
+				curules = [p['curules'] for p in seat_chart if 'curules' in p]
+				kpis = {
+					'mae_votos_vs_escanos': safe_mae(votos, curules),
+					'indice_gallagher': safe_gallagher(votos, curules)
+				}
+			except Exception as e:
+				import traceback
+				print(f"[ERROR] Procesando diputados: {e}")
+				traceback.print_exc()
+				seat_chart = []
+				kpis = {'error': 'Fallo el procesamiento de diputados. Revisa logs y archivos.'}
 		elif camara.lower() == "senado":
 			if anio == 2018:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
