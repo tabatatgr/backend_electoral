@@ -40,8 +40,14 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
     """
     import numpy as np
     from .kpi_utils import kpis_votos_escanos
+    import os
     try:
         print(f"[DEBUG] Leyendo Parquet: {path_parquet}")
+        print(f"[DEBUG] Path Parquet absoluto: {os.path.abspath(path_parquet)}")
+        if os.path.exists(path_parquet):
+            print(f"[DEBUG] Size Parquet (bytes): {os.path.getsize(path_parquet)}")
+        else:
+            print(f"[ERROR] El archivo Parquet no existe: {path_parquet}")
         try:
             df = pd.read_parquet(path_parquet)
         except Exception as e:
