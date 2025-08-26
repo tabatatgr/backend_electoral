@@ -244,9 +244,30 @@ def simulacion(
 			if int(row["asientos_partido"]) > 0
 		]
 
-		# Si es personalizado y hay umbral, aplicar primero el kernel de umbral
-		if modelo.lower() == "personalizado" and umbral is not None:
-			seat_chart = aplicar_umbral(seat_chart, umbral)
+		# Lógica robusta para umbral
+		import logging
+		if modelo.lower() == "personalizado":
+			logging.debug(f"[DEBUG] umbral recibido en petición: {umbral}")
+			if umbral is not None and umbral > 0:
+				logging.debug(f"[DEBUG] Aplicando filtro de umbral: {umbral}")
+				seat_chart = aplicar_umbral(seat_chart, umbral)
+			else:
+				logging.debug("[DEBUG] No se aplica filtro de umbral (None, vacío o 0)")
+
+			# Validar suma de votos tras filtros
+			total_votos_filtrados = sum([p.get('votes', 0) for p in seat_chart])
+			if total_votos_filtrados == 0:
+				logging.error("[ERROR] La suma de votos tras aplicar umbral y filtros es cero. No se pueden calcular escaños.")
+				return JSONResponse(
+					content={
+						"error": "La suma de votos tras aplicar el umbral y otros filtros es cero. No se pueden calcular escaños.",
+						"seatChart": [],
+						"kpis": {},
+						"tabla": []
+					},
+					headers={"Access-Control-Allow-Origin": "*"},
+					status_code=400
+				)
 		# Luego, si hay sobrerrepresentación, aplicar el kernel correspondiente
 		if modelo.lower() == "personalizado" and sobrerrepresentacion is not None:
 			seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, sobrerrepresentacion)
