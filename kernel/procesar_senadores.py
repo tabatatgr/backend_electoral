@@ -86,6 +86,11 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
                 sig = pd.read_parquet(path_siglado)
             print(f"[DEBUG] Siglado columnas: {sig.columns.tolist()}")
             sig.columns = [normalizar_texto(c) for c in sig.columns]
+            # Usar 'ENTIDAD_ASCII' si existe, si no 'ENTIDAD'
+            if 'ENTIDAD_ASCII' in sig.columns:
+                sig['ENTIDAD'] = sig['ENTIDAD_ASCII']
+            elif 'ENTIDAD' not in sig.columns:
+                raise ValueError("El archivo de siglado no contiene columna 'ENTIDAD' ni 'ENTIDAD_ASCII'")
             sig['ENTIDAD'] = sig['ENTIDAD'].apply(normalize_entidad)
             # MR: F1 y F2 por entidad
             for _, row in sig.iterrows():
