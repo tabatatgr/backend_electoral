@@ -66,16 +66,16 @@ def simulacion(
 			# Selecciona archivo y siglado
 			if anio == 2018:
 				parquet_path = "data/computos_diputados_2018.parquet"
-				siglado_path = "data/siglado_diputados_2018.parquet"
+				siglado_path = "data/siglado-diputados-2018.csv"
 			elif anio == 2021:
 				parquet_path = "data/computos_diputados_2021.parquet"
-				siglado_path = "data/siglado_diputados_2021.parquet"
+				siglado_path = "data/siglado-diputados-2021.csv"
 			elif anio == 2024:
 				parquet_path = "data/computos_diputados_2024.parquet"
-				siglado_path = "data/siglado_diputados_2024.parquet"
+				siglado_path = "data/siglado-diputados-2024.csv"
 			else:
 				parquet_path = "data/computos_diputados_2021.parquet"
-				siglado_path = "data/siglado_diputados_2021.parquet"
+				siglado_path = "data/siglado-diputados-2021.csv"
 			seat_chart = procesar_diputados_parquet(
 				parquet_path, partidos_base, anio, path_siglado=siglado_path
 			)
@@ -87,7 +87,7 @@ def simulacion(
 			elif anio == 2024:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
 				parquet_path = "data/computos_senado_2024.parquet"
-				siglado_path = "data/siglado_senado_2024.parquet"
+				siglado_path = "data/siglado-senado-2024.csv"
 			else:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
 				parquet_path = "data/computos_senado_2024.parquet"
