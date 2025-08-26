@@ -89,6 +89,7 @@ def simulacion(
 				parquet_path = "data/computos_diputados_2021.parquet"
 				siglado_path = "data/siglado-diputados-2021.csv"
 			# Determina magnitud (número de escaños) si viene del frontend
+			print(f"[DEBUG] magnitud recibida en petición: {magnitud}")
 			max_seats = magnitud if magnitud is not None else 300
 			try:
 				seat_chart_raw = procesar_diputados_parquet(
