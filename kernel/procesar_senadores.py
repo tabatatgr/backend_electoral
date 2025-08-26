@@ -76,8 +76,12 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
         pm_list = []
         if path_siglado is not None:
             print(f"[DEBUG] Leyendo siglado: {path_siglado}")
-            if path_siglado.lower().endswith('.csv'):
-                sig = pd.read_csv(path_siglado, encoding='utf-8')
+                if path_siglado.lower().endswith('.csv'):
+                    try:
+                        sig = pd.read_csv(path_siglado, encoding='utf-8')
+                    except UnicodeDecodeError:
+                        print('[WARN] Error de codificación UTF-8, intentando con latin1...')
+                        sig = pd.read_csv(path_siglado, encoding='latin1')
             else:
                 sig = pd.read_parquet(path_siglado)
             print(f"[DEBUG] Siglado columnas: {sig.columns.tolist()}")
