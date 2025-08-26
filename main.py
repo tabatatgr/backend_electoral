@@ -83,7 +83,7 @@ def simulacion(
 			if anio == 2018:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
 				parquet_path = "data/computos_senado_2018.parquet"
-				siglado_path = "data/siglado_senado_2018.parquet"
+				siglado_path = "data/ine_cg2018_senado_siglado_long.csv"
 			elif anio == 2024:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
 				parquet_path = "data/computos_senado_2024.parquet"
