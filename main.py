@@ -126,6 +126,8 @@ def simulacion(
 				]
 				# Aplicar la regla electoral SIEMPRE si está definida (mr, rp, mixto)
 				if regla_electoral is not None:
+					import logging
+					logging.warning(f"[REGLA ELECTORAL] Aplicando regla_electoral='{regla_electoral}' (mr=mayoría relativa, rp=representación proporcional, mixto=mixto) con parámetros: mixto_mr_seats={mr_seats}, quota_method={quota_method}, divisor_method={divisor_method}")
 					from kernel.regla_electoral import aplicar_regla_electoral
 					seat_chart = aplicar_regla_electoral(
 						seat_chart,
