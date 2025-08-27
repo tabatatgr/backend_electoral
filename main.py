@@ -61,19 +61,14 @@ def simulacion(
 	regla_electoral: str = Query(None),
 	mixto_mr_seats: int = Query(None),
 	quota_method: str = Query('hare'),
-	divisor_method: str = Query('dhondt')
+	divisor_method: str = Query('dhondt'),
+	max_seats_per_party: int = Query(None)
 ):
+	import logging
 	# Si modelo personalizado, procesar datos reales
 	if modelo.lower() == "personalizado":
 		# Nuevo: tope máximo de escaños por partido (puede venir como parámetro, si no, None)
-		import logging
-		from typing import Optional
-		import math
-		max_seats_per_party: Optional[int] = None
-		try:
-			max_seats_per_party = int(Query(None, alias='max_seats_per_party'))
-		except Exception:
-			max_seats_per_party = None
+		logging.debug(f"[DEBUG] max_seats_per_party recibido en petición: {max_seats_per_party}")
 		camara_lower = camara.lower()
 		if camara_lower == "diputados":
 			# Define partidos base según año
@@ -119,6 +114,7 @@ def simulacion(
 					for p in seat_chart_raw if int(p["curules"]) > 0
 				]
 				# Aplicar tope de escaños por partido si está definido y reasignar sobrantes
+				logging.debug(f"[DEBUG] max_seats_per_party (Diputados): {max_seats_per_party}")
 				if max_seats_per_party is not None and max_seats_per_party > 0:
 					sobrantes = 0
 					# 1. Recortar partidos que superan el tope y acumular sobrantes
@@ -216,9 +212,12 @@ def simulacion(
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
 				parquet_path = "data/computos_senado_2024.parquet"
 				siglado_path = "data/siglado_senado_2024.parquet"
+			# Determinar magnitud y umbral para Senado
+			total_rp_seats = magnitud if magnitud is not None else 128
+			umbral_senado = umbral if umbral is not None else 0.03
 			senado_res = procesar_senadores_parquet(
 				parquet_path, partidos_base, anio, path_siglado=siglado_path,
-				total_rp_seats=32, umbral=0.03, quota_method=quota_method, divisor_method=divisor_method
+				total_rp_seats=total_rp_seats, umbral=umbral_senado, quota_method=quota_method, divisor_method=divisor_method
 			)
 			seat_chart_raw = senado_res['salida']
 			# Usar los KPIs calculados en procesar_senadores_parquet
@@ -235,6 +234,7 @@ def simulacion(
 				for p in seat_chart_raw if int(p.get("escanos", p.get("curules", 0))) > 0
 			]
 			# Aplicar tope de escaños por partido si está definido (Senado) y reasignar sobrantes
+			logging.debug(f"[DEBUG] max_seats_per_party (Senado): {max_seats_per_party}")
 			if max_seats_per_party is not None and max_seats_per_party > 0:
 				sobrantes = 0
 				for p in seat_chart:
