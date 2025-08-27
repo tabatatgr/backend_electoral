@@ -41,21 +41,44 @@ def asignadip_v2(
     # Umbral nacional
     ok = {p: (votos[p] / VVE >= threshold) if VVE > 0 else False for p in partidos}
     votos_ok = {p: votos[p] if ok[p] else 0 for p in partidos}
-    # Asignación inicial de RP
     quota_map = {'hare': hare_quota, 'droop': droop_quota, 'droop_exact': exact_droop_quota}
-    if quota_method in quota_map:
-        s_rp_init = quota_map[quota_method](m, votos_ok, sum(votos_ok.values()))
-    elif divisor_method == 'dhondt':
-        s_rp_init = dhondt_divisor(m, votos_ok)
+
+    # Detectar sistema puro MR, RP o mixto
+    # Si m (RP) == 0 => puro MR
+    # Si sum(ssd.values()) == 0 => puro RP
+    # Si ambos > 0 => mixto
+    if m == 0:
+        # Solo MR
+        s_mr = {p: int(ssd.get(p, 0)) for p in partidos}
+        s_rp = {p: 0 for p in partidos}
+        s_tot = {p: s_mr[p] for p in partidos}
+    elif sum(ssd.values()) == 0:
+        # Solo RP
+        if quota_method in quota_map and m > 0:
+            s_rp_init = quota_map[quota_method](m, votos_ok, sum(votos_ok.values()))
+        elif divisor_method == 'dhondt' and m > 0:
+            s_rp_init = dhondt_divisor(m, votos_ok)
+        else:
+            s_rp_init = {p: 0 for p in partidos}
+        s_mr = {p: 0 for p in partidos}
+        s_rp = {p: int(s_rp_init.get(p, 0)) for p in partidos}
+        s_tot = {p: s_rp[p] for p in partidos}
     else:
-        s_rp_init = {p: 0 for p in partidos}
-    # Topes nacionales
-    v_nacional = {p: votos_ok[p] / sum(votos_ok.values()) if sum(votos_ok.values()) > 0 else 0 for p in partidos}
-    s_mr = {p: int(ssd.get(p, 0)) for p in partidos}
-    s_rp = {p: int(s_rp_init.get(p, 0)) for p in partidos}
-    s_tot = {p: s_mr[p] + s_rp[p] for p in partidos}
-    # Aplicar topes (Art. 54 IV y V)
-    if apply_caps:
+        # Mixto
+        if quota_method in quota_map and m > 0:
+            s_rp_init = quota_map[quota_method](m, votos_ok, sum(votos_ok.values()))
+        elif divisor_method == 'dhondt' and m > 0:
+            s_rp_init = dhondt_divisor(m, votos_ok)
+        else:
+            s_rp_init = {p: 0 for p in partidos}
+        v_nacional = {p: votos_ok[p] / sum(votos_ok.values()) if sum(votos_ok.values()) > 0 else 0 for p in partidos}
+        s_mr = {p: int(ssd.get(p, 0)) for p in partidos}
+        s_rp = {p: int(s_rp_init.get(p, 0)) for p in partidos}
+        s_tot = {p: s_mr[p] + s_rp[p] for p in partidos}
+
+    # Topes nacionales solo si hay RP o mixto
+    if apply_caps and (m > 0 or sum(ssd.values()) > 0):
+        v_nacional = {p: votos_ok[p] / sum(votos_ok.values()) if sum(votos_ok.values()) > 0 else 0 for p in partidos}
         lim_dist = {p: max(s_mr[p], int((v_nacional[p] + max_pp) * S)) for p in partidos}
         lim_300 = {p: max_seats for p in partidos}
         lim_max = {p: min(lim_dist[p], lim_300[p]) for p in partidos}
