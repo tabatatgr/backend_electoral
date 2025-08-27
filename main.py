@@ -65,7 +65,8 @@ def simulacion(
 ):
 	# Si modelo personalizado, procesar datos reales
 	if modelo.lower() == "personalizado":
-		if camara.lower() == "diputados":
+		camara_lower = camara.lower()
+		if camara_lower == "diputados":
 			# Define partidos base según año
 			if anio == 2018:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
@@ -108,8 +109,23 @@ def simulacion(
 					}
 					for p in seat_chart_raw if int(p["curules"]) > 0
 				]
-				votos = [p['votos'] for p in seat_chart_raw if 'votos' in p]
-				curules = [p['curules'] for p in seat_chart_raw if 'curules' in p]
+				# Aplicar sobrerrepresentación solo para Diputados
+				import logging
+				logging.debug(f"[DEBUG] sobrerrepresentacion recibida en petición: {sobrerrepresentacion}")
+				if camara_lower == "diputados":
+					if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
+						limite_sobre = sobrerrepresentacion
+						if limite_sobre >= 1:
+							logging.warning(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
+							limite_sobre = limite_sobre / 100
+						logging.debug(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
+						seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
+					else:
+						logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
+				else:
+					logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación para cámara distinta a Diputados")
+				votos = [p['votes'] for p in seat_chart if 'votes' in p]
+				curules = [p['seats'] for p in seat_chart if 'seats' in p]
 				kpis = {
 					"total_seats": total_curules,
 					"mae_votos_vs_escanos": safe_mae(votos, curules),
@@ -251,35 +267,37 @@ def simulacion(
 			if umbral is not None and umbral > 0:
 				logging.debug(f"[DEBUG] Aplicando filtro de umbral: {umbral}")
 				seat_chart = aplicar_umbral(seat_chart, umbral)
+				# Validar suma de votos tras filtros
+				total_votos_filtrados = sum([p.get('votes', 0) for p in seat_chart])
+				if total_votos_filtrados == 0:
+					logging.error("[ERROR] La suma de votos tras aplicar umbral y filtros es cero. No se pueden calcular escaños.")
+					return JSONResponse(
+						content={
+							"error": "La suma de votos tras aplicar el umbral y otros filtros es cero. No se pueden calcular escaños.",
+							"seatChart": [],
+							"kpis": {},
+							"tabla": []
+						},
+						headers={"Access-Control-Allow-Origin": "*"},
+						status_code=400
+					)
 			else:
-				logging.debug("[DEBUG] No se aplica filtro de umbral (None, vacío o 0)")
-
-			# Validar suma de votos tras filtros
-			total_votos_filtrados = sum([p.get('votes', 0) for p in seat_chart])
-			if total_votos_filtrados == 0:
-				logging.error("[ERROR] La suma de votos tras aplicar umbral y filtros es cero. No se pueden calcular escaños.")
-				return JSONResponse(
-					content={
-						"error": "La suma de votos tras aplicar el umbral y otros filtros es cero. No se pueden calcular escaños.",
-						"seatChart": [],
-						"kpis": {},
-						"tabla": []
-					},
-					headers={"Access-Control-Allow-Origin": "*"},
-					status_code=400
-				)
-		# Lógica robusta para sobrerrepresentación
+				logging.debug("[DEBUG] No se aplica filtro de umbral (None, vacío o 0). Se calcula como si no hubiera umbral.")
+		# Lógica robusta para sobrerrepresentación SOLO para Diputados
 		if modelo.lower() == "personalizado":
 			logging.debug(f"[DEBUG] sobrerrepresentacion recibida en petición: {sobrerrepresentacion}")
-			if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
-				limite_sobre = sobrerrepresentacion
-				if limite_sobre >= 1:
-					logging.warning(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
-					limite_sobre = limite_sobre / 100
-				logging.debug(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
-				seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
+			if camara_lower == "diputados":
+				if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
+					limite_sobre = sobrerrepresentacion
+					if limite_sobre >= 1:
+						logging.warning(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
+						limite_sobre = limite_sobre / 100
+					logging.debug(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
+					seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
+				else:
+					logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
 			else:
-				logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
+				logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación para cámara distinta a Diputados")
 		# Finalmente, si hay regla electoral, aplicar el kernel correspondiente
 		if modelo.lower() == "personalizado" and regla_electoral is not None:
 			seat_chart = aplicar_regla_electoral(
