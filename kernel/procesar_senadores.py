@@ -97,9 +97,19 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
                 raise ValueError("El archivo de siglado no contiene columna 'ENTIDAD' ni 'ENTIDAD_ASCII'")
             sig['ENTIDAD'] = sig['ENTIDAD'].apply(normalize_entidad)
             # MR: F1 y F2 por entidad
-            for _, row in sig.iterrows():
+            for idx, row in sig.iterrows():
                 partido = row.get('GRUPO_PARLAMENTARIO', None)
-                formula = int(row.get('FORMULA', 0))
+                # Validar y convertir FORMULA de forma robusta
+                formula_val = row.get('FORMULA', 0)
+                try:
+                    if pd.isnull(formula_val) or formula_val == '':
+                        formula = 0
+                    elif isinstance(formula_val, (list, tuple)) and len(formula_val) > 0:
+                        formula = int(formula_val[0])
+                    else:
+                        formula = int(formula_val)
+                except Exception as e:
+                    print(f"[WARN] Fila {idx} FORMULA inválida: {formula_val} ({e})"); formula = 0
                 if partido in partidos_base:
                     if formula == 1 or formula == 2:
                         mr_list.append(partido)
