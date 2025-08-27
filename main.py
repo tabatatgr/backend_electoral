@@ -196,155 +196,70 @@ def simulacion(
 				import logging
 				logging.debug(f"[DEBUG] sobrerrepresentacion recibida en petición: {sobrerrepresentacion}")
 				if camara_lower == "diputados":
-					if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
-						limite_sobre = sobrerrepresentacion
-						if limite_sobre >= 1:
-							logging.warning(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
-							limite_sobre = limite_sobre / 100
-						logging.debug(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
-						seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
-					else:
-						logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
-				else:
-					logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación para cámara distinta a Diputados")
-				votos = []
-				curules = [p['seats'] for p in seat_chart if 'seats' in p]
-				kpis = {
-					"total_seats": total_curules,
-					"mae_votos_vs_escanos": 0,
-					"gallagher": 0,
-					"total_votos": 0
-				}
-			except Exception as e:
-				import traceback
-				print(f"[ERROR] Procesando diputados: {e}")
-				traceback.print_exc()
-				seat_chart = []
-				kpis = {'error': 'Fallo el procesamiento de diputados. Revisa logs y archivos.'}
-	elif camara.lower() == "senado":
-			if anio == 2018:
-				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
-				parquet_path = "data/computos_senado_2018.parquet"
-				siglado_path = "data/ine_cg2018_senado_siglado_long.csv"
-			elif anio == 2024:
-				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
-				parquet_path = "data/computos_senado_2024.parquet"
-				siglado_path = "data/siglado-senado-2024.csv"
-			else:
-				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
-				parquet_path = "data/computos_senado_2024.parquet"
-				siglado_path = "data/siglado_senado_2024.parquet"
-			# Determinar magnitud y umbral para Senado
-			total_rp_seats = magnitud if magnitud is not None else 128
-			umbral_senado = umbral if umbral is not None else 0.03
-			senado_res = procesar_senadores_parquet(
-				parquet_path, partidos_base, anio, path_siglado=siglado_path,
-				total_rp_seats=total_rp_seats, umbral=umbral_senado, quota_method=quota_method, divisor_method=divisor_method
-			)
-			seat_chart_raw = senado_res['salida']
-			# Usar los KPIs calculados en procesar_senadores_parquet
-			kpis = senado_res.get('kpis', {})
-			total_escanos = sum([p['escanos'] if 'escanos' in p else p.get('curules', 0) for p in seat_chart_raw]) or 1
-			seat_chart = [
-				{
-					"party": p["partido"],
-					"seats": int(p.get("escanos", p.get("curules", 0))),
-					"color": PARTY_COLORS.get(p["partido"], "#888"),
-					"percent": round(100 * (p.get("escanos", p.get("curules", 0)) / total_escanos), 2),
-					"votes": int(p["votos"]) if 'votos' in p else 0
-				}
-				for p in seat_chart_raw if int(p.get("escanos", p.get("curules", 0))) > 0
-			]
-			# Aplicar tope de escaños por partido si está definido (Senado) y reasignar sobrantes
-			logging.debug(f"[DEBUG] max_seats_per_party (Senado): {max_seats_per_party}")
-			if max_seats_per_party is not None and max_seats_per_party > 0:
-				sobrantes = 0
-				for p in seat_chart:
-					if p['seats'] > max_seats_per_party:
-						sobrantes += p['seats'] - max_seats_per_party
-						logging.warning(f"[WARN] Tope de escaños por partido aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
-						p['seats'] = max_seats_per_party
-				while sobrantes > 0:
-					elegibles = [p for p in seat_chart if p['seats'] < max_seats_per_party]
-					if not elegibles:
-						break
-					total_votos_elegibles = sum(p['votes'] for p in elegibles)
-					if total_votos_elegibles == 0:
-						for p in elegibles:
-							if sobrantes == 0:
-								break
-							p['seats'] += 1
-							sobrantes -= 1
-						break
-					asignaciones = []
-					for p in elegibles:
-						asignar = min(sobrantes, max_seats_per_party - p['seats'])
-						prop = p['votes'] / total_votos_elegibles
-						seats_to_add = min(asignar, int(round(prop * sobrantes)))
-						asignaciones.append(seats_to_add)
-					total_asignados = sum(asignaciones)
-					faltan = sobrantes - total_asignados
-					for i, p in enumerate(elegibles):
-						if faltan <= 0:
-							break
-						if p['seats'] + asignaciones[i] < max_seats_per_party:
-							asignaciones[i] += 1
-							faltan -= 1
-					for i, p in enumerate(elegibles):
-						p['seats'] += asignaciones[i]
-						sobrantes -= asignaciones[i]
-				# Ajuste final: asegurar que la suma total de escaños no cambió
-				total_escanos = sum(p['seats'] for p in seat_chart)
-				ajuste = total_escanos - (magnitud if magnitud is not None else 128)
-				if ajuste != 0:
-					if ajuste > 0:
-						for p in sorted(seat_chart, key=lambda x: -x['seats']):
-							quitar = min(ajuste, p['seats'] - 0)
-							p['seats'] -= quitar
-							ajuste -= quitar
-							if ajuste == 0:
-								break
-					elif ajuste < 0:
-						for p in sorted(seat_chart, key=lambda x: x['seats']):
-							p['seats'] += 1
-							ajuste += 1
-							if ajuste == 0:
-								break
-	else:
-		return JSONResponse(
-			content={"error": "Cámara no soportada"},
-			status_code=400,
-			headers={"Access-Control-Allow-Origin": "*"},
-		)
-
-	# Solo partidos (sin CI)
-	# kpis ya calculados arriba
-	# Devuelve también el resultado completo de asignadip_v2 para debug/frontend avanzado
-	return JSONResponse(
-		content={
-			"seatChart": seat_chart,
-			"kpis": kpis,
-			"tabla": seat_chart,
-			"Resultado_asignadip_v2": resultado_asignadip_v2 if 'resultado_asignadip_v2' in locals() else None
-		},
-		headers={"Access-Control-Allow-Origin": "*"},
-		status_code=200
-	)
-
-	# Selecciona el archivo Parquet según la cámara (ruta relativa)
-	if camara.lower() == "senado":
-		parquet_path = "data/senado-resumen-modelos-votos-escanos.parquet"
-	else:
-		parquet_path = "data/resumen-modelos-votos-escanos-diputados.parquet"
-
-	# Determina la magnitud
-	if modelo.lower() == "personalizado" and magnitud is not None:
-		magnitud_camara = magnitud
-	else:
-		magnitud_camara = get_magnitud(camara, modelo)
-
-	con = duckdb.connect()
-	query = f'''
+					# Si modelo personalizado, procesar datos reales
+					if modelo.lower() == "personalizado":
+						if camara_lower == "diputados":
+							if anio == 2018:
+								partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
+							elif anio == 2021:
+								partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","RSP","FXM"]
+							elif anio == 2024:
+								partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
+							else:
+								partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
+							if anio == 2018:
+								parquet_path = "data/computos_diputados_2018.parquet"
+								siglado_path = "data/siglado-diputados-2018.csv"
+							elif anio == 2021:
+								parquet_path = "data/computos_diputados_2021.parquet"
+								siglado_path = "data/siglado-diputados-2021.csv"
+							elif anio == 2024:
+								parquet_path = "data/computos_diputados_2024.parquet"
+								siglado_path = "data/siglado-diputados-2024.csv"
+							else:
+								parquet_path = "data/computos_diputados_2021.parquet"
+								siglado_path = "data/siglado-diputados-2021.csv"
+							max_seats = magnitud if magnitud is not None else 300
+							sistema_tipo = sistema.lower() if sistema else 'mixto'
+							mr_seats = mixto_mr_seats if mixto_mr_seats is not None else (max_seats // 2 if sistema_tipo == 'mixto' else (max_seats if sistema_tipo == 'mr' else 0))
+							rp_seats = mixto_rp_seats if mixto_rp_seats is not None else (max_seats - mr_seats if sistema_tipo == 'mixto' else (max_seats if sistema_tipo == 'rp' else 0))
+							seat_chart_raw = procesar_diputados_parquet(
+								parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats,
+								sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
+								regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method
+							)
+							total_curules = sum([p["curules"] for p in seat_chart_raw]) or 1
+							seat_chart = [
+								{
+									"party": p["partido"],
+									"seats": int(p["curules"]),
+									"color": PARTY_COLORS.get(p["partido"], "#888"),
+									"percent": round(100 * (p["curules"] / total_curules), 2),
+									"votes": int(p["votos"]) if 'votos' in p else 0
+								}
+								for p in seat_chart_raw if int(p["curules"]) > 0
+							]
+							votos = [p['votes'] for p in seat_chart if 'votes' in p]
+							curules = [p['seats'] for p in seat_chart if 'seats' in p]
+							# Aplicar sobrerrepresentación solo para Diputados
+							logging.debug(f"[DEBUG] sobrerrepresentacion recibida en petición: {sobrerrepresentacion}")
+							if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
+								limite_sobre = sobrerrepresentacion
+								if limite_sobre >= 1:
+									logging.warning(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
+									limite_sobre = limite_sobre / 100
+								logging.debug(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
+								seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
+							else:
+								logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
+							kpis = {
+								"total_seats": total_curules,
+								"mae_votos_vs_escanos": safe_mae(votos, curules),
+								"gallagher": safe_gallagher(votos, curules),
+								"total_votos": sum(votos)
+							}
+						else:
+							# ...existing code for senado...
 		SELECT partido, asientos_partido, pct_escanos, total_escanos, total_votos, mae_votos_vs_escanos, indice_gallagher
 		FROM '{parquet_path}'
 		WHERE anio = {anio}
