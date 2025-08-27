@@ -124,6 +124,7 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
         salida = []
         votos_dict = {}
         escanos_dict = {}
+        # Usar los escaños ajustados (res) para seat chart y KPIs
         for p in partidos_base:
             votos_p = votos_partido.get(p, 0)
             escanos_p = int(res.get(p, {}).get('tot', 0))
@@ -140,7 +141,9 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
         # Independientes
         if indep > 0:
             salida.append({'partido': 'CI', 'votos': indep, 'mr': 0, 'pm': 0, 'rp': 0, 'escanos': indep})
-        # KPIs robustos
+            votos_dict['CI'] = indep
+            escanos_dict['CI'] = indep
+        # KPIs robustos: calcular SIEMPRE con los escaños finales (ajustados)
         kpis = kpis_votos_escanos(votos_dict, escanos_dict)
         print("[DEBUG] votos_dict:", votos_dict)
         print("[DEBUG] escanos_dict:", escanos_dict)
