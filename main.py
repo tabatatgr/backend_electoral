@@ -110,7 +110,9 @@ def simulacion(
 					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
 					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method
 				)
-				# resultado_asignadip debe ser un dict tipo {'mr': ..., 'rp': ..., 'tot': ...}
+				# Validación robusta del tipo de resultado_asignadip
+				if not isinstance(resultado_asignadip, dict):
+					raise ValueError(f"Error interno: el resultado de asignación de escaños no es un diccionario. Tipo recibido: {type(resultado_asignadip)}. Valor: {resultado_asignadip}")
 				# Selecciona el dict correcto según sistema
 				if sistema_tipo == 'mr':
 					dict_escanos = resultado_asignadip.get('mr', {})
@@ -118,6 +120,8 @@ def simulacion(
 					dict_escanos = resultado_asignadip.get('rp', {})
 				else:
 					dict_escanos = resultado_asignadip.get('tot', {})
+				if not isinstance(dict_escanos, dict):
+					raise ValueError(f"Error interno: el resultado de escaños para el sistema '{sistema_tipo}' no es un diccionario. Tipo recibido: {type(dict_escanos)}. Valor: {dict_escanos}")
 				total_curules = sum(dict_escanos.values()) or 1
 				seat_chart = [
 					{
