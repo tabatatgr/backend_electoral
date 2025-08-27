@@ -65,6 +65,15 @@ def simulacion(
 ):
 	# Si modelo personalizado, procesar datos reales
 	if modelo.lower() == "personalizado":
+		# Nuevo: tope máximo de escaños por partido (puede venir como parámetro, si no, None)
+		import logging
+		from typing import Optional
+		import math
+		max_seats_per_party: Optional[int] = None
+		try:
+			max_seats_per_party = int(Query(None, alias='max_seats_per_party'))
+		except Exception:
+			max_seats_per_party = None
 		camara_lower = camara.lower()
 		if camara_lower == "diputados":
 			# Define partidos base según año
@@ -109,6 +118,62 @@ def simulacion(
 					}
 					for p in seat_chart_raw if int(p["curules"]) > 0
 				]
+				# Aplicar tope de escaños por partido si está definido y reasignar sobrantes
+				if max_seats_per_party is not None and max_seats_per_party > 0:
+					sobrantes = 0
+					# 1. Recortar partidos que superan el tope y acumular sobrantes
+					for p in seat_chart:
+						if p['seats'] > max_seats_per_party:
+							sobrantes += p['seats'] - max_seats_per_party
+							logging.warning(f"[WARN] Tope de escaños por partido aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
+							p['seats'] = max_seats_per_party
+					# 2. Reasignar sobrantes proporcionalmente a los partidos que no han alcanzado el tope
+					while sobrantes > 0:
+						elegibles = [p for p in seat_chart if p['seats'] < max_seats_per_party]
+						if not elegibles:
+							break
+						total_votos_elegibles = sum(p['votes'] for p in elegibles)
+						if total_votos_elegibles == 0:
+							for p in elegibles:
+								if sobrantes == 0:
+									break
+								p['seats'] += 1
+								sobrantes -= 1
+							break
+						asignaciones = []
+						for p in elegibles:
+							asignar = min(sobrantes, max_seats_per_party - p['seats'])
+							prop = p['votes'] / total_votos_elegibles
+							seats_to_add = min(asignar, int(round(prop * sobrantes)))
+							asignaciones.append(seats_to_add)
+						total_asignados = sum(asignaciones)
+						faltan = sobrantes - total_asignados
+						for i, p in enumerate(elegibles):
+							if faltan <= 0:
+								break
+							if p['seats'] + asignaciones[i] < max_seats_per_party:
+								asignaciones[i] += 1
+								faltan -= 1
+						for i, p in enumerate(elegibles):
+							p['seats'] += asignaciones[i]
+							sobrantes -= asignaciones[i]
+					# Ajuste final: asegurar que la suma total de escaños no cambió
+					total_curules = sum(p['seats'] for p in seat_chart)
+					ajuste = total_curules - (magnitud if magnitud is not None else 300)
+					if ajuste != 0:
+						if ajuste > 0:
+							for p in sorted(seat_chart, key=lambda x: -x['seats']):
+								quitar = min(ajuste, p['seats'] - 0)
+								p['seats'] -= quitar
+								ajuste -= quitar
+								if ajuste == 0:
+									break
+						elif ajuste < 0:
+							for p in sorted(seat_chart, key=lambda x: x['seats']):
+								p['seats'] += 1
+								ajuste += 1
+								if ajuste == 0:
+									break
 				# Aplicar sobrerrepresentación solo para Diputados
 				import logging
 				logging.debug(f"[DEBUG] sobrerrepresentacion recibida en petición: {sobrerrepresentacion}")
@@ -156,6 +221,8 @@ def simulacion(
 				total_rp_seats=32, umbral=0.03, quota_method=quota_method, divisor_method=divisor_method
 			)
 			seat_chart_raw = senado_res['salida']
+			# Usar los KPIs calculados en procesar_senadores_parquet
+			kpis = senado_res.get('kpis', {})
 			total_escanos = sum([p['escanos'] if 'escanos' in p else p.get('curules', 0) for p in seat_chart_raw]) or 1
 			seat_chart = [
 				{
@@ -167,14 +234,60 @@ def simulacion(
 				}
 				for p in seat_chart_raw if int(p.get("escanos", p.get("curules", 0))) > 0
 			]
-			votos = [p['votos'] for p in seat_chart_raw if 'votos' in p]
-			escanos = [p.get('escanos', p.get('curules', 0)) for p in seat_chart_raw]
-			kpis = {
-				"total_seats": total_escanos,
-				"mae_votos_vs_escanos": safe_mae(votos, escanos),
-				"gallagher": safe_gallagher(votos, escanos),
-				"total_votos": sum(votos)
-			}
+			# Aplicar tope de escaños por partido si está definido (Senado) y reasignar sobrantes
+			if max_seats_per_party is not None and max_seats_per_party > 0:
+				sobrantes = 0
+				for p in seat_chart:
+					if p['seats'] > max_seats_per_party:
+						sobrantes += p['seats'] - max_seats_per_party
+						logging.warning(f"[WARN] Tope de escaños por partido aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
+						p['seats'] = max_seats_per_party
+				while sobrantes > 0:
+					elegibles = [p for p in seat_chart if p['seats'] < max_seats_per_party]
+					if not elegibles:
+						break
+					total_votos_elegibles = sum(p['votes'] for p in elegibles)
+					if total_votos_elegibles == 0:
+						for p in elegibles:
+							if sobrantes == 0:
+								break
+							p['seats'] += 1
+							sobrantes -= 1
+						break
+					asignaciones = []
+					for p in elegibles:
+						asignar = min(sobrantes, max_seats_per_party - p['seats'])
+						prop = p['votes'] / total_votos_elegibles
+						seats_to_add = min(asignar, int(round(prop * sobrantes)))
+						asignaciones.append(seats_to_add)
+					total_asignados = sum(asignaciones)
+					faltan = sobrantes - total_asignados
+					for i, p in enumerate(elegibles):
+						if faltan <= 0:
+							break
+						if p['seats'] + asignaciones[i] < max_seats_per_party:
+							asignaciones[i] += 1
+							faltan -= 1
+					for i, p in enumerate(elegibles):
+						p['seats'] += asignaciones[i]
+						sobrantes -= asignaciones[i]
+				# Ajuste final: asegurar que la suma total de escaños no cambió
+				total_escanos = sum(p['seats'] for p in seat_chart)
+				ajuste = total_escanos - (magnitud if magnitud is not None else 128)
+				if ajuste != 0:
+					if ajuste > 0:
+						for p in sorted(seat_chart, key=lambda x: -x['seats']):
+							quitar = min(ajuste, p['seats'] - 0)
+							p['seats'] -= quitar
+							ajuste -= quitar
+							if ajuste == 0:
+								break
+					elif ajuste < 0:
+						for p in sorted(seat_chart, key=lambda x: x['seats']):
+							p['seats'] += 1
+							ajuste += 1
+							if ajuste == 0:
+								break
 		else:
 			return JSONResponse(
 				content={"error": "Cámara no soportada"},
