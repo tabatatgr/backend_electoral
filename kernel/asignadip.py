@@ -42,8 +42,8 @@ def asignadip_v2(
     ok = {p: (votos[p] / VVE >= threshold) if VVE > 0 else False for p in partidos}
     votos_ok = {p: votos[p] if ok[p] else 0 for p in partidos}
     # Asignación inicial de RP
-    if quota_method in ['hare', 'droop', 'droop_exact']:
-        quota_map = {'hare': hare_quota, 'droop': droop_quota, 'droop_exact': exact_droop_quota}
+    quota_map = {'hare': hare_quota, 'droop': droop_quota, 'droop_exact': exact_droop_quota}
+    if quota_method in quota_map:
         s_rp_init = quota_map[quota_method](m, votos_ok, sum(votos_ok.values()))
     elif divisor_method == 'dhondt':
         s_rp_init = dhondt_divisor(m, votos_ok)
@@ -78,11 +78,11 @@ def asignadip_v2(
                     if p not in fixed and ok[p]:
                         s_rp[p] = 0
             else:
-                # Reparto de restos
-                if quota_method in ['hare', 'droop', 'droop_exact']:
-                    s_rp_add = quota_map[quota_method](n_rest, v_eff, sum(v_eff.values()))
-                elif divisor_method == 'dhondt':
+                # Reparto de restos: permite elegir un método diferente para los restos
+                if divisor_method == 'dhondt':
                     s_rp_add = dhondt_divisor(n_rest, v_eff)
+                elif quota_method in quota_map:
+                    s_rp_add = quota_map[quota_method](n_rest, v_eff, sum(v_eff.values()))
                 else:
                     s_rp_add = {p: 0 for p in partidos}
                 for p in partidos:

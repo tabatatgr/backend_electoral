@@ -118,10 +118,22 @@ def simulacion(
 						"seats": int(p["curules"]),
 						"color": PARTY_COLORS.get(p["partido"], "#888"),
 						"percent": round(100 * (p["curules"] / total_curules), 2),
-						"votes": int(p["votos"])
+						"votes": int(p["votos"]),
+						"mr": int(p["mr"]) if "mr" in p else 0,
+						"rp": int(p["rp"]) if "rp" in p else 0
 					}
 					for p in seat_chart_raw if int(p["curules"]) > 0
 				]
+				# Aplicar la regla electoral SIEMPRE si está definida (mr, rp, mixto)
+				if regla_electoral is not None:
+					from kernel.regla_electoral import aplicar_regla_electoral
+					seat_chart = aplicar_regla_electoral(
+						seat_chart,
+						regla_electoral,
+						mixto_mr_seats=mr_seats,
+						quota_method=quota_method,
+						divisor_method=divisor_method
+					)
 				# Aplicar tope de escaños por partido si está definido y reasignar sobrantes
 				logging.debug(f"[DEBUG] max_seats_per_party (Diputados): {max_seats_per_party}")
 				if max_seats_per_party is not None and max_seats_per_party > 0:
