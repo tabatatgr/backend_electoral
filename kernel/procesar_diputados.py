@@ -27,7 +27,7 @@ def normalize_entidad(x):
     return x
 
 # --- Procesamiento principal para diputados ---
-def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=None, max_seats=300, sistema='mixto', mr_seats=None, rp_seats=None):
+def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=None, max_seats=300, sistema='mixto', mr_seats=None, rp_seats=None, regla_electoral=None, quota_method='hare', divisor_method='dhondt'):
     """
     Lee y procesa la base Parquet de diputados, regresa dicts listos para el orquestador.
     - path_parquet: ruta al archivo Parquet
@@ -129,7 +129,8 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
     print(f"[DEBUG] sistema: {sistema_tipo}, m (RP): {m}, S (total): {S}, max_seats: {max_seats}")
     res = asignadip_v2(
         votos_ok, ssd, indep=indep, nulos=0, no_reg=0, m=m, S=S,
-        threshold=0.03, max_seats=max_seats, max_pp=0.08, apply_caps=True
+        threshold=0.03, max_seats=max_seats, max_pp=0.08, apply_caps=True,
+        quota_method=quota_method, divisor_method=divisor_method
     )
     print(f"[DEBUG] Resultado asignadip_v2: {res}")
     salida = []

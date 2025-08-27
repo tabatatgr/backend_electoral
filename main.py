@@ -107,7 +107,8 @@ def simulacion(
 			try:
 				seat_chart_raw = procesar_diputados_parquet(
 					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats,
-					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats
+					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
+					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method
 				)
 				# Unificar formato de seat_chart
 				total_curules = sum([p['curules'] for p in seat_chart_raw if 'curules' in p]) or 1
