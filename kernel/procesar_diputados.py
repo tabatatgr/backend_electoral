@@ -27,7 +27,7 @@ def normalize_entidad(x):
     return x
 
 # --- Procesamiento principal para diputados ---
-def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=None, max_seats=300):
+def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=None, max_seats=300, sistema='mixto', mr_seats=None, rp_seats=None):
     """
     Lee y procesa la base Parquet de diputados, regresa dicts listos para el orquestador.
     - path_parquet: ruta al archivo Parquet
@@ -115,9 +115,20 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
         import logging
         logging.error("[ERROR] La suma de votos tras aplicar el umbral es cero. No se pueden calcular escaños.")
         raise ValueError("La suma de votos tras aplicar el umbral es cero. No se pueden calcular escaños.")
-    # Usar max_seats para m, S y max_seats
+    # Determinar m (RP) y S (total) según sistema
+    sistema_tipo = sistema.lower() if sistema else 'mixto'
+    if sistema_tipo == 'mr':
+        m = 0
+        S = mr_seats if mr_seats is not None else max_seats
+    elif sistema_tipo == 'rp':
+        m = rp_seats if rp_seats is not None else max_seats
+        S = m
+    else:  # mixto
+        m = rp_seats if rp_seats is not None else (max_seats // 2)
+        S = mr_seats + m if mr_seats is not None else max_seats
+    print(f"[DEBUG] sistema: {sistema_tipo}, m (RP): {m}, S (total): {S}, max_seats: {max_seats}")
     res = asignadip_v2(
-        votos_ok, ssd, indep=indep, nulos=0, no_reg=0, m=max_seats, S=max_seats,
+        votos_ok, ssd, indep=indep, nulos=0, no_reg=0, m=m, S=S,
         threshold=0.03, max_seats=max_seats, max_pp=0.08, apply_caps=True
     )
     print(f"[DEBUG] Resultado asignadip_v2: {res}")

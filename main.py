@@ -60,6 +60,8 @@ def simulacion(
 	umbral: float = Query(None),
 	regla_electoral: str = Query(None),
 	mixto_mr_seats: int = Query(None),
+	mixto_rp_seats: int = Query(None),
+	sistema: str = Query('mixto'),
 	quota_method: str = Query('hare'),
 	divisor_method: str = Query('dhondt'),
 	max_seats_per_party: int = Query(None)
@@ -70,7 +72,7 @@ def simulacion(
 		# Nuevo: tope máximo de escaños por partido (puede venir como parámetro, si no, None)
 		logging.debug(f"[DEBUG] max_seats_per_party recibido en petición: {max_seats_per_party}")
 		camara_lower = camara.lower()
-		if camara_lower == "diputados":
+	if camara_lower == "diputados":
 			# Define partidos base según año
 			if anio == 2018:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
@@ -97,9 +99,15 @@ def simulacion(
 			print(f"[DEBUG] magnitud recibida en petición: {magnitud}")
 			print(f"[DEBUG] umbral recibido en petición: {umbral}")
 			max_seats = magnitud if magnitud is not None else 300
+			# Determinar sistema y escaños MR/RP
+			sistema_tipo = sistema.lower() if sistema else 'mixto'
+			mr_seats = mixto_mr_seats if mixto_mr_seats is not None else (max_seats // 2 if sistema_tipo == 'mixto' else (max_seats if sistema_tipo == 'mr' else 0))
+			rp_seats = mixto_rp_seats if mixto_rp_seats is not None else (max_seats - mr_seats if sistema_tipo == 'mixto' else (max_seats if sistema_tipo == 'rp' else 0))
+			print(f"[DEBUG] sistema: {sistema_tipo}, MR: {mr_seats}, RP: {rp_seats}, Total: {max_seats}")
 			try:
 				seat_chart_raw = procesar_diputados_parquet(
-					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats
+					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats,
+					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats
 				)
 				# Unificar formato de seat_chart
 				total_curules = sum([p['curules'] for p in seat_chart_raw if 'curules' in p]) or 1
@@ -199,7 +207,7 @@ def simulacion(
 				traceback.print_exc()
 				seat_chart = []
 				kpis = {'error': 'Fallo el procesamiento de diputados. Revisa logs y archivos.'}
-		elif camara.lower() == "senado":
+	elif camara.lower() == "senado":
 			if anio == 2018:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
 				parquet_path = "data/computos_senado_2018.parquet"
@@ -288,29 +296,24 @@ def simulacion(
 							ajuste += 1
 							if ajuste == 0:
 								break
-		else:
-			return JSONResponse(
-				content={"error": "Cámara no soportada"},
-				status_code=400,
-				headers={"Access-Control-Allow-Origin": "*"},
-			)
-			tv = sum(v); ts = sum(s)
-			if tv == 0 or ts == 0: return 0
-			v = [x/tv for x in v]
-			s = [x/ts for x in s]
-			return (sum((a-b)**2 for a,b in zip(v,s))/2)**0.5
-
-		# Solo partidos (sin CI)
-	# kpis ya calculados arriba
+	else:
 		return JSONResponse(
-			content={
-				"seatChart": seat_chart,
-				"kpis": kpis,
-				"tabla": seat_chart
-			},
+			content={"error": "Cámara no soportada"},
+			status_code=400,
 			headers={"Access-Control-Allow-Origin": "*"},
-			status_code=200
 		)
+
+	# Solo partidos (sin CI)
+	# kpis ya calculados arriba
+	return JSONResponse(
+		content={
+			"seatChart": seat_chart,
+			"kpis": kpis,
+			"tabla": seat_chart
+		},
+		headers={"Access-Control-Allow-Origin": "*"},
+		status_code=200
+	)
 
 	# Selecciona el archivo Parquet según la cámara (ruta relativa)
 	if camara.lower() == "senado":
