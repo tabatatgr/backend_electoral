@@ -26,7 +26,7 @@ def asignasen_v1(resultados_mr, resultados_pm, resultados_rp, total_rp_seats=32,
         pm_count[p] = pm_count.get(p, 0) + 1
     # RP: solo partidos con >= umbral nacional
     total_votes = sum(r['votes'] for r in resultados_rp)
-    votos_ok = {r['party']: r['votes'] for r in resultados_rp if r['votes']/total_votes >= umbral}
+    votos_ok = {r['party']: r['votes'] for r in resultados_rp if total_votes > 0 and r['votes']/total_votes >= umbral}
     # Asignación de RP
     if quota_method in ['hare', 'droop', 'droop_exact']:
         from kernel.quota_methods import hare_quota, droop_quota, exact_droop_quota
@@ -37,7 +37,8 @@ def asignasen_v1(resultados_mr, resultados_pm, resultados_rp, total_rp_seats=32,
         s_rp = dhondt_divisor(total_rp_seats, votos_ok)
     else:
         s_rp = {p: 0 for p in votos_ok}
-    # Total por partido
+
+    # Total inicial por partido
     partidos = set(list(mr_count.keys()) + list(pm_count.keys()) + list(s_rp.keys()))
     salida = {}
     for p in partidos:
@@ -47,4 +48,35 @@ def asignasen_v1(resultados_mr, resultados_pm, resultados_rp, total_rp_seats=32,
             'rp': s_rp.get(p, 0),
             'tot': mr_count.get(p, 0) + pm_count.get(p, 0) + s_rp.get(p, 0)
         }
+
+    # Ajuste para que la suma total de escaños coincida con total_rp_seats + MR + PM (magnitud)
+    suma_actual = sum(salida[p]['tot'] for p in salida)
+    magnitud = total_rp_seats + sum(mr_count.values()) + sum(pm_count.values())
+    # Si la suma no coincide con la magnitud deseada, ajusta RP proporcionalmente
+    if suma_actual != magnitud:
+        diferencia = magnitud - suma_actual
+        # Solo ajusta RP, nunca MR ni PM
+        total_rp_actual = sum(salida[p]['rp'] for p in salida)
+        if total_rp_actual > 0:
+            # Ajuste proporcional
+            for p in salida:
+                rp = salida[p]['rp']
+                ajuste = int(round(rp + diferencia * (rp / total_rp_actual))) if total_rp_actual > 0 else rp
+                salida[p]['rp'] = max(0, ajuste)
+                salida[p]['tot'] = salida[p]['mr'] + salida[p]['pm'] + salida[p]['rp']
+            # Recalcula suma y corrige si hay desfase por redondeo
+            suma_corr = sum(salida[p]['tot'] for p in salida)
+            while suma_corr != magnitud:
+                # Corrige sumando/restando 1 a los partidos con más/menos RP
+                if suma_corr < magnitud:
+                    # Suma 1 al partido con mayor RP
+                    pmax = max(salida, key=lambda x: salida[x]['rp'])
+                    salida[pmax]['rp'] += 1
+                    salida[pmax]['tot'] += 1
+                elif suma_corr > magnitud:
+                    # Resta 1 al partido con mayor RP (siempre que RP>0)
+                    pmax = max([p for p in salida if salida[p]['rp'] > 0], key=lambda x: salida[x]['rp'])
+                    salida[pmax]['rp'] -= 1
+                    salida[pmax]['tot'] -= 1
+                suma_corr = sum(salida[p]['tot'] for p in salida)
     return salida
