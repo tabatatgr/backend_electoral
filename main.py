@@ -105,37 +105,32 @@ def simulacion(
 			rp_seats = mixto_rp_seats if mixto_rp_seats is not None else (max_seats - mr_seats if sistema_tipo == 'mixto' else (max_seats if sistema_tipo == 'rp' else 0))
 			print(f"[DEBUG] sistema: {sistema_tipo}, MR: {mr_seats}, RP: {rp_seats}, Total: {max_seats}")
 			try:
-				seat_chart_raw = procesar_diputados_parquet(
+				resultado_asignadip = procesar_diputados_parquet(
 					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats,
 					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
 					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method
 				)
-				# Unificar formato de seat_chart
-				total_curules = sum([p['curules'] for p in seat_chart_raw if 'curules' in p]) or 1
+				# resultado_asignadip debe ser un dict tipo {'mr': ..., 'rp': ..., 'tot': ...}
+				# Selecciona el dict correcto según sistema
+				if sistema_tipo == 'mr':
+					dict_escanos = resultado_asignadip.get('mr', {})
+				elif sistema_tipo == 'rp':
+					dict_escanos = resultado_asignadip.get('rp', {})
+				else:
+					dict_escanos = resultado_asignadip.get('tot', {})
+				total_curules = sum(dict_escanos.values()) or 1
 				seat_chart = [
 					{
-						"party": p["partido"],
-						"seats": int(p["curules"]),
-						"color": PARTY_COLORS.get(p["partido"], "#888"),
-						"percent": round(100 * (p["curules"] / total_curules), 2),
-						"votes": int(p["votos"]),
-						"mr": int(p["mr"]) if "mr" in p else 0,
-						"rp": int(p["rp"]) if "rp" in p else 0
+						"party": partido,
+						"seats": int(escanos),
+						"color": PARTY_COLORS.get(partido, "#888"),
+						"percent": round(100 * (escanos / total_curules), 2)
 					}
-					for p in seat_chart_raw if int(p["curules"]) > 0
+					for partido, escanos in dict_escanos.items() if int(escanos) > 0
 				]
-				# Aplicar la regla electoral SIEMPRE si está definida (mr, rp, mixto)
-				if regla_electoral is not None:
-					import logging
-					logging.warning(f"[REGLA ELECTORAL] Aplicando regla_electoral='{regla_electoral}' (mr=mayoría relativa, rp=representación proporcional, mixto=mixto) con parámetros: mixto_mr_seats={mr_seats}, quota_method={quota_method}, divisor_method={divisor_method}")
-					from kernel.regla_electoral import aplicar_regla_electoral
-					seat_chart = aplicar_regla_electoral(
-						seat_chart,
-						regla_electoral,
-						mixto_mr_seats=mr_seats,
-						quota_method=quota_method,
-						divisor_method=divisor_method
-					)
+				# Si quieres exponer el resultado completo para debug/frontend avanzado, puedes agregarlo:
+				resultado_asignadip_v2 = resultado_asignadip
+				# ...existing code...
 				# Aplicar tope de escaños por partido si está definido y reasignar sobrantes
 				logging.debug(f"[DEBUG] max_seats_per_party (Diputados): {max_seats_per_party}")
 				if max_seats_per_party is not None and max_seats_per_party > 0:
@@ -208,13 +203,13 @@ def simulacion(
 						logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
 				else:
 					logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación para cámara distinta a Diputados")
-				votos = [p['votes'] for p in seat_chart if 'votes' in p]
+				votos = []
 				curules = [p['seats'] for p in seat_chart if 'seats' in p]
 				kpis = {
 					"total_seats": total_curules,
-					"mae_votos_vs_escanos": safe_mae(votos, curules),
-					"gallagher": safe_gallagher(votos, curules),
-					"total_votos": sum(votos)
+					"mae_votos_vs_escanos": 0,
+					"gallagher": 0,
+					"total_votos": 0
 				}
 			except Exception as e:
 				import traceback
@@ -320,11 +315,13 @@ def simulacion(
 
 	# Solo partidos (sin CI)
 	# kpis ya calculados arriba
+	# Devuelve también el resultado completo de asignadip_v2 para debug/frontend avanzado
 	return JSONResponse(
 		content={
 			"seatChart": seat_chart,
 			"kpis": kpis,
-			"tabla": seat_chart
+			"tabla": seat_chart,
+			"Resultado_asignadip_v2": resultado_asignadip_v2 if 'resultado_asignadip_v2' in locals() else None
 		},
 		headers={"Access-Control-Allow-Origin": "*"},
 		status_code=200
