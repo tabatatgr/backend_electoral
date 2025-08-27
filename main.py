@@ -67,12 +67,12 @@ def simulacion(
 	max_seats_per_party: int = Query(None)
 ):
 	import logging
+	camara_lower = camara.lower()
 	# Si modelo personalizado, procesar datos reales
 	if modelo.lower() == "personalizado":
 		# Nuevo: tope máximo de escaños por partido (puede venir como parámetro, si no, None)
 		logging.debug(f"[DEBUG] max_seats_per_party recibido en petición: {max_seats_per_party}")
-		camara_lower = camara.lower()
-	if camara_lower == "diputados":
+		if camara_lower == "diputados":
 			# Define partidos base según año
 			if anio == 2018:
 				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
