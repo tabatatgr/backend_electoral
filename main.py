@@ -258,8 +258,8 @@ def simulacion(
 								"gallagher": safe_gallagher(votos, curules),
 								"total_votos": sum(votos)
 							}
-						else:
-							# ...existing code for senado...
+					# Si necesitas lógica para senado o modelos no personalizados, agrégala aquí
+					pass
 		SELECT partido, asientos_partido, pct_escanos, total_escanos, total_votos, mae_votos_vs_escanos, indice_gallagher
 		FROM '{parquet_path}'
 		WHERE anio = {anio}
