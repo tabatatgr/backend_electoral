@@ -282,17 +282,17 @@ def simulacion(
 			
 			# Selecciona archivos de senado
 			if anio == 2018:
-				parquet_path = "data/computos_senadores_2018.parquet"
-				siglado_path = "data/siglado-senadores-2018.csv"
+				parquet_path = "data/computos_senado_2018.parquet"
+				siglado_path = "data/ine_cg2018_senado_siglado_long.csv"
 			elif anio == 2021:
-				parquet_path = "data/computos_senadores_2021.parquet"
-				siglado_path = "data/siglado-senadores-2021.csv"
+				parquet_path = "data/computos_senado_2021.parquet"  # Puede no existir
+				siglado_path = "data/siglado-senado-2021.csv"       # Puede no existir
 			elif anio == 2024:
-				parquet_path = "data/computos_senadores_2024.parquet" 
-				siglado_path = "data/siglado-senadores-2024.csv"
+				parquet_path = "data/computos_senado_2024.parquet" 
+				siglado_path = "data/siglado-senado-2024.csv"
 			else:
-				parquet_path = "data/computos_senadores_2021.parquet"
-				siglado_path = "data/siglado-senadores-2021.csv"
+				parquet_path = "data/computos_senado_2018.parquet"
+				siglado_path = "data/ine_cg2018_senado_siglado_long.csv"
 			
 			# Para senado, magnitud normalmente es 128, pero puede venir del frontend
 			max_seats = magnitud if magnitud is not None else 128

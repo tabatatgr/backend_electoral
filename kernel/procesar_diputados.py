@@ -163,4 +163,6 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
                     if x['curules'] > 0:
                         x['curules'] -= 1
                         break
-    return salida
+    
+    # Retornar el resultado del diccionario de asignadip_v2 en lugar de la lista final
+    return res

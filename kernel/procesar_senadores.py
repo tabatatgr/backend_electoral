@@ -158,7 +158,25 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
         print("[DEBUG] votos_dict:", votos_dict)
         print("[DEBUG] escanos_dict:", escanos_dict)
         print("[DEBUG] KPIs:", kpis)
-        return {'salida': salida, 'kpis': kpis}
+        
+        # Formato compatible con main.py (similar a asignadip_v2)
+        mr_dict = {p: mr_count.get(p, 0) for p in partidos_base}
+        pm_dict = {p: pm_count.get(p, 0) for p in partidos_base}
+        rp_dict = {p: int(res.get(p, {}).get('rp', 0)) for p in partidos_base}
+        tot_dict = {p: int(res.get(p, {}).get('tot', 0)) for p in partidos_base}
+        votos_dict_clean = {p: votos_partido.get(p, 0) for p in partidos_base}
+        
+        resultado_formato_main = {
+            'mr': mr_dict,
+            'pm': pm_dict,
+            'rp': rp_dict,
+            'tot': tot_dict,
+            'votos': votos_dict_clean,
+            'salida': salida,
+            'kpis': kpis
+        }
+        
+        return resultado_formato_main
     except Exception as e:
         print(f"[ERROR] procesar_senadores_parquet: {e}")
         return {'salida': [], 'kpis': {}, 'error': str(e)}
