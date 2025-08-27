@@ -258,145 +258,16 @@ def simulacion(
 								"gallagher": safe_gallagher(votos, curules),
 								"total_votos": sum(votos)
 							}
-					# Si necesitas lógica para senado o modelos no personalizados, agrégala aquí
-					pass
-		SELECT partido, asientos_partido, pct_escanos, total_escanos, total_votos, mae_votos_vs_escanos, indice_gallagher
-		FROM '{parquet_path}'
-		WHERE anio = {anio}
-		  AND LOWER(modelo) = '{modelo.lower()}'
-	'''
-	df = con.execute(query).df()
-	if df.empty:
-		# Devuelve respuesta vacía y CORS OK
-		return JSONResponse(
-			content={"seatChart": [], "kpis": {}, "tabla": []},
-			headers={"Access-Control-Allow-Origin": "*"},
-			status_code=200
-		)
-	try:
-		# Selecciona el archivo Parquet según la cámara (ruta relativa)
-		if camara.lower() == "senado":
-			parquet_path = "data/senado-resumen-modelos-votos-escanos.parquet"
-		else:
-			parquet_path = "data/resumen-modelos-votos-escanos-diputados.parquet"
-		con = duckdb.connect()
-		query = f'''
-			SELECT partido, asientos_partido, pct_escanos, total_escanos, total_votos, mae_votos_vs_escanos, indice_gallagher, pct_votos
-			FROM '{parquet_path}'
-			WHERE anio = {anio}
-			  AND LOWER(modelo) = '{modelo.lower()}'
-		'''
-		df = con.execute(query).df()
-		if df.empty:
-			# Devuelve respuesta vacía y CORS OK
-			return JSONResponse(
-				content={"seatChart": [], "kpis": {}, "tabla": []},
-				headers={"Access-Control-Allow-Origin": "*"},
-				status_code=200
-			)
-		# Prepara el seat chart
-		seat_chart = [
-			{
-				"party": row["partido"],
-				"seats": int(row["asientos_partido"]),
-				"color": PARTY_COLORS.get(row["partido"], "#888"),
-				"percent": round(float(row["pct_escanos"]) * 100, 2),
-				"votes": float(row["pct_votos"]) if "pct_votos" in row else 0.0
-			}
-			for _, row in df.iterrows()
-			if int(row["asientos_partido"]) > 0
-		]
+			except Exception as e:
+				import traceback
+				print(f"[ERROR] Procesando diputados: {e}")
+				traceback.print_exc()
+				seat_chart = []
+				kpis = {'error': 'Fallo el procesamiento de diputados. Revisa logs y archivos.'}
+		# Si necesitas lógica para senado o modelos no personalizados, agrégala aquí
+		pass
 
-		# Lógica robusta para umbral
-		import logging
-		if modelo.lower() == "personalizado":
-			logging.debug(f"[DEBUG] umbral recibido en petición: {umbral}")
-			if umbral is not None and umbral > 0:
-				logging.debug(f"[DEBUG] Aplicando filtro de umbral: {umbral}")
-				seat_chart = aplicar_umbral(seat_chart, umbral)
-				# Validar suma de votos tras filtros
-				total_votos_filtrados = sum([p.get('votes', 0) for p in seat_chart])
-				if total_votos_filtrados == 0:
-					logging.error("[ERROR] La suma de votos tras aplicar umbral y filtros es cero. No se pueden calcular escaños.")
-					return JSONResponse(
-						content={
-							"error": "La suma de votos tras aplicar el umbral y otros filtros es cero. No se pueden calcular escaños.",
-							"seatChart": [],
-							"kpis": {},
-							"tabla": []
-						},
-						headers={"Access-Control-Allow-Origin": "*"},
-						status_code=400
-					)
-			else:
-				logging.debug("[DEBUG] No se aplica filtro de umbral (None, vacío o 0). Se calcula como si no hubiera umbral.")
-		# Lógica robusta para sobrerrepresentación SOLO para Diputados
-		if modelo.lower() == "personalizado":
-			logging.debug(f"[DEBUG] sobrerrepresentacion recibida en petición: {sobrerrepresentacion}")
-			if camara_lower == "diputados":
-				if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
-					limite_sobre = sobrerrepresentacion
-					if limite_sobre >= 1:
-						logging.warning(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
-						limite_sobre = limite_sobre / 100
-					logging.debug(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
-					seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
-				else:
-					logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
-			else:
-				logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación para cámara distinta a Diputados")
-		# Finalmente, si hay regla electoral, aplicar el kernel correspondiente
-		if modelo.lower() == "personalizado" and regla_electoral is not None:
-			seat_chart = aplicar_regla_electoral(
-				seat_chart,
-				regla_electoral,
-				mixto_mr_seats,
-				quota_method=quota_method,
-				divisor_method=divisor_method
-			)
-
-		# KPIs (toma el primer registro, todos tienen el mismo total)
-		kpi_row = df.iloc[0] if not df.empty else None
-		kpis = {
-			"total_seats": int(magnitud_camara),
-			"gallagher": float(kpi_row["indice_gallagher"]) if kpi_row is not None else 0,
-			"mae_votos_vs_escanos": float(kpi_row["mae_votos_vs_escanos"]) if kpi_row is not None else 0,
-			"total_votos": int(kpi_row["total_votos"]) if kpi_row is not None else 0,
-		}
-		return JSONResponse(
-			content={
-				"seatChart": seat_chart,
-				"kpis": kpis,
-				"tabla": seat_chart
-			},
-			headers={"Access-Control-Allow-Origin": "*"},
-			status_code=200
-		)
-	except Exception as e:
-		return JSONResponse(
-			content={"error": str(e)},
-			status_code=500,
-			headers={"Access-Control-Allow-Origin": "*"}
-		)
-	# Prepara el seat chart
-	seat_chart = [
-		{
-			"party": row["partido"],
-			"seats": int(row["asientos_partido"]),
-			"color": PARTY_COLORS.get(row["partido"], "#888"),
-			"percent": round(float(row["pct_escanos"]) * 100, 2)
-		}
-		for _, row in df.iterrows()
-		if int(row["asientos_partido"]) > 0
-	]
-	# KPIs (toma el primer registro, todos tienen el mismo total)
-	kpi_row = df.iloc[0] if not df.empty else None
-	kpis = {
-		"total_seats": int(kpi_row["total_escanos"]) if kpi_row is not None else 0,
-		"gallagher": float(kpi_row["indice_gallagher"]) if kpi_row is not None else 0,
-		"mae_votos_vs_escanos": float(kpi_row["mae_votos_vs_escanos"]) if kpi_row is not None else 0,
-		"total_votos": int(kpi_row["total_votos"]) if kpi_row is not None else 0,
-	}
+	# Devuelve respuesta con seatChart y KPIs
 	return JSONResponse(
 		content={
 			"seatChart": seat_chart,
@@ -406,4 +277,5 @@ def simulacion(
 		headers={"Access-Control-Allow-Origin": "*"},
 		status_code=200
 	)
+
 
