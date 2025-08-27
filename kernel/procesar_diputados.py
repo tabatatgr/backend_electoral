@@ -97,12 +97,24 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
         frame = frame.f_back
     if umbral is None:
         umbral = 0.03
+    # Normaliza umbral: si es >=1, interpreta como porcentaje (3 -> 0.03)
+    if umbral >= 1:
+        print(f"[WARN] El umbral recibido es {umbral}, se interpreta como porcentaje: {umbral/100}")
+        umbral = umbral / 100
+    print(f"[DEBUG] Umbral usado para filtro: {umbral}")
     # Aplica umbral a votos_ok
     total_votos_validos = sum(votos_partido.values())
     votos_ok = {p: int(votos_partido.get(p, 0)) if total_votos_validos > 0 and (votos_partido.get(p, 0)/total_votos_validos) >= umbral else 0 for p in partidos_base}
     ssd = {p: int(mr_aligned.get(p, 0)) for p in partidos_base}
     print(f"[DEBUG] votos_ok Diputados: {votos_ok}")
     print(f"[DEBUG] ssd Diputados: {ssd}")
+
+    # Validar suma de votos_ok tras aplicar umbral
+    suma_votos_ok = sum(votos_ok.values())
+    if suma_votos_ok == 0:
+        import logging
+        logging.error("[ERROR] La suma de votos tras aplicar el umbral es cero. No se pueden calcular escaños.")
+        raise ValueError("La suma de votos tras aplicar el umbral es cero. No se pueden calcular escaños.")
     # Usar max_seats para m, S y max_seats
     res = asignadip_v2(
         votos_ok, ssd, indep=indep, nulos=0, no_reg=0, m=max_seats, S=max_seats,
