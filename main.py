@@ -36,6 +36,7 @@ from kernel.umbral import aplicar_umbral
 from kernel.regla_electoral import aplicar_regla_electoral
 from kernel.procesar_diputados import procesar_diputados_parquet
 from kernel.procesar_senadores import procesar_senadores_parquet
+from kernel.plan_c import procesar_plan_c_diputados
 from kernel.kpi_utils import kpis_votos_escanos
 
 def safe_mae(v, s):
@@ -73,6 +74,14 @@ def simulacion(
 	# Inicializar variables por defecto
 	seat_chart = []
 	kpis = {"total_seats": 0, "gallagher": 0, "mae_votos_vs_escanos": 0, "total_votos": 0}
+	
+	# Verificar si se debe usar Plan C precomputado para diputados
+	if camara_lower == "diputados" and modelo.lower() == "plan c":
+		seat_chart, kpis = procesar_plan_c_diputados(anio)
+		if seat_chart is None or kpis is None:
+			kpis = {'error': 'Fallo el procesamiento de Plan C precomputado. Revisa logs y archivos.'}
+			seat_chart = []
+	
 	# Si modelo personalizado, procesar datos reales
 	if modelo.lower() == "personalizado":
 		# Nuevo: tope máximo de escaños por partido (puede venir como parámetro, si no, None)
@@ -673,11 +682,28 @@ def simulacion(
 
 			# KPIs (toma el primer registro, todos tienen el mismo total)
 			kpi_row = df.iloc[0] if not df.empty else None
+			
+			# Manejar total_votos que puede ser "NA"
+			total_votos_val = 0
+			if kpi_row is not None:
+				tv = kpi_row["total_votos"]
+				if tv != "NA" and str(tv).strip() != "NA":
+					try:
+						total_votos_val = int(float(tv) if isinstance(tv, str) else tv)
+					except (ValueError, TypeError):
+						total_votos_val = 0
+			
+			# Determinar el total de escaños correcto
+			if modelo.lower() == "plan c":
+				total_seats_actual = 300  # Plan C tiene 300 escaños
+			else:
+				total_seats_actual = int(magnitud_camara)
+			
 			kpis = {
-				"total_seats": int(magnitud_camara),
+				"total_seats": total_seats_actual,
 				"gallagher": float(kpi_row["indice_gallagher"]) if kpi_row is not None else 0,
 				"mae_votos_vs_escanos": float(kpi_row["mae_votos_vs_escanos"]) if kpi_row is not None else 0,
-				"total_votos": int(kpi_row["total_votos"]) if kpi_row is not None else 0,
+				"total_votos": total_votos_val,
 			}
 			
 		except Exception as e:
