@@ -9,6 +9,10 @@ def largest_remainder_formula(quota, total_seats, votes):
     :param votes: dict {partido: votos}
     :return: dict {partido: escaños}
     """
+    # Si no hay votos válidos, retornar dict vacío
+    if not votes or total_seats <= 0:
+        return {}
+    
     seats = {}
     remainders = {}
     total_assigned = 0
@@ -19,10 +23,12 @@ def largest_remainder_formula(quota, total_seats, votes):
         total_assigned += s
     # Repartir los escaños restantes por restos mayores
     seats_left = total_seats - total_assigned
-    if seats_left > 0:
+    if seats_left > 0 and remainders:
         # Ordenar partidos por resto (descendente)
         sorted_parties = sorted(remainders.items(), key=lambda x: (-x[1], x[0]))
-        for i in range(seats_left):
+        # Solo asignar hasta el número de partidos disponibles
+        max_assignments = min(seats_left, len(sorted_parties))
+        for i in range(max_assignments):
             party = sorted_parties[i][0]
             seats[party] += 1
     return seats

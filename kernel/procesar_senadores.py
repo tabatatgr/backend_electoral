@@ -30,13 +30,15 @@ def normalize_entidad(x):
     x = re.sub(r'\s+', ' ', x)
     return x
 
-def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=None, total_rp_seats=32, umbral=0.03, quota_method='hare', divisor_method='dhondt'):
+def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=None, total_rp_seats=32, umbral=0.03, quota_method='hare', divisor_method='dhondt', primera_minoria=True, limite_escanos_pm=None):
     """
     Procesa la base Parquet de senadores y regresa lista de dicts lista para el orquestador y seat chart.
     - path_parquet: ruta al archivo Parquet
     - partidos_base: lista de partidos válidos
     - anio: año de elección
     - path_siglado: CSV largo de siglado por entidad/fórmula
+    - primera_minoria: si incluir escaños de Primera Minoría
+    - limite_escanos_pm: límite de escaños para Primera Minoría
     """
     import numpy as np
     from .kpi_utils import kpis_votos_escanos
@@ -102,14 +104,22 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
                 # Validar y convertir FORMULA de forma robusta
                 formula_val = row.get('FORMULA', 0)
                 try:
-                    if pd.isnull(formula_val) or formula_val == '':
+                    if pd.isnull(formula_val) or formula_val == '' or formula_val is None:
                         formula = 0
-                    elif isinstance(formula_val, (list, tuple)) and len(formula_val) > 0:
-                        formula = int(formula_val[0])
+                    elif isinstance(formula_val, (list, tuple)):
+                        if len(formula_val) > 0:
+                            formula = int(formula_val[0])
+                        else:
+                            print(f"[WARN] Fila {idx} FORMULA es lista/tupla vacía: {formula_val}")
+                            formula = 0
+                    elif isinstance(formula_val, str) and formula_val.strip() == '':
+                        formula = 0
                     else:
-                        formula = int(formula_val)
+                        formula = int(float(formula_val))  # Convertir a float primero por si es decimal
+                except (IndexError, ValueError, TypeError) as e:
+                    print(f"[WARN] Fila {idx} FORMULA inválida: {formula_val} (Error: {e})"); formula = 0
                 except Exception as e:
-                    print(f"[WARN] Fila {idx} FORMULA inválida: {formula_val} ({e})"); formula = 0
+                    print(f"[ERROR] Fila {idx} Error inesperado procesando FORMULA: {formula_val} (Error: {e})"); formula = 0
                 if partido in partidos_base:
                     if formula == 1 or formula == 2:
                         mr_list.append(partido)
@@ -118,8 +128,38 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
         # Cuenta MR y PM
         mr_count = {p: mr_list.count(p) for p in partidos_base}
         pm_count = {p: pm_list.count(p) for p in partidos_base}
+        
+        print(f"[DEBUG] mr_list: {mr_list}")
+        print(f"[DEBUG] pm_list: {pm_list}")
+        print(f"[DEBUG] mr_count: {mr_count}")
+        print(f"[DEBUG] pm_count: {pm_count}")
+        
         # RP nacional: votos totales por partido
         resultados_rp = [{'party': p, 'votes': votos_partido.get(p, 0)} for p in partidos_base]
+        print(f"[DEBUG] resultados_rp: {resultados_rp}")
+        
+        # Validar que tenemos datos mínimos antes de llamar asignasen_v1
+        if not mr_list and not pm_list and not any(votos_partido.values()):
+            print("[WARN] No hay datos de MR, PM o votos. Devolviendo resultado vacío.")
+            salida = []
+            for p in partidos_base:
+                salida.append({
+                    'partido': p,
+                    'votos': 0,
+                    'mr': 0,
+                    'pm': 0,
+                    'rp': 0,
+                    'escanos': 0
+                })
+            return {
+                'mr': {p: 0 for p in partidos_base},
+                'pm': {p: 0 for p in partidos_base},
+                'rp': {p: 0 for p in partidos_base},
+                'tot': {p: 0 for p in partidos_base},
+                'votos': {p: 0 for p in partidos_base},
+                'salida': salida,
+                'kpis': {'mae_votos_vs_escanos': 0.0, 'indice_gallagher': 0.0}
+            }
         # Llama orquestador de senadores
         res = asignasen_v1(
             [{'party': p} for p in mr_list],
@@ -128,7 +168,9 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
             total_rp_seats=total_rp_seats,
             umbral=umbral,
             quota_method=quota_method,
-            divisor_method=divisor_method
+            divisor_method=divisor_method,
+            primera_minoria=primera_minoria,
+            limite_escanos_pm=limite_escanos_pm
         )
         # Salida: lista de dicts por partido
         salida = []
