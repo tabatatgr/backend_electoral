@@ -194,7 +194,7 @@ def simulacion(
 				resultado_asignadip = procesar_diputados_parquet(
 					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats,
 					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
-					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method, umbral=umbral
+					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method, umbral=umbral, max_seats_per_party=max_seats_per_party
 				)
 				# Validación robusta del tipo de resultado_asignadip
 				if not isinstance(resultado_asignadip, dict):

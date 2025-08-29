@@ -14,7 +14,7 @@ from kernel.lr_ties import lr_ties
 def procesar_diputados_tablero(path_parquet, partidos_base, anio, path_siglado=None, 
                               max_seats=300, sistema='mixto', mr_seats=None, rp_seats=None, 
                               regla_electoral=None, quota_method='hare', divisor_method='dhondt', 
-                              umbral=None):
+                              umbral=None, max_seats_per_party=None):
     """
     Función wrapper que decide usar asignación por estado o método tradicional
     según el sistema electoral.
@@ -67,7 +67,7 @@ def procesar_diputados_tablero(path_parquet, partidos_base, anio, path_siglado=N
             path_parquet, partidos_base, anio, path_siglado=path_siglado, 
             max_seats=max_seats, sistema='mixto', mr_seats=mr_seats, rp_seats=rp_seats,
             regla_electoral=regla_electoral, quota_method=quota_method, 
-            divisor_method=divisor_method, umbral=umbral
+            divisor_method=divisor_method, umbral=umbral, max_seats_per_party=max_seats_per_party
         )
         
         print(f"[WRAPPER] Mixto tradicional - MR: {sum(resultado_mixto['mr'].values())}, RP: {sum(resultado_mixto['rp'].values())}, Total: {sum(resultado_mixto['tot'].values())}")
@@ -81,7 +81,7 @@ def procesar_diputados_tablero(path_parquet, partidos_base, anio, path_siglado=N
             path_parquet, partidos_base, anio, path_siglado=path_siglado, 
             max_seats=max_seats, sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
             regla_electoral=regla_electoral, quota_method=quota_method, 
-            divisor_method=divisor_method, umbral=umbral
+            divisor_method=divisor_method, umbral=umbral, max_seats_per_party=max_seats_per_party
         )
 
 

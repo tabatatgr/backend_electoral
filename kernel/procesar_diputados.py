@@ -136,7 +136,7 @@ def distribuir_votos_coaliciones(votos_partido, df_votos, path_siglado, partidos
         return votos_partido
 
 # --- Procesamiento principal para diputados ---
-def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=None, max_seats=300, sistema='mixto', mr_seats=None, rp_seats=None, regla_electoral=None, quota_method='hare', divisor_method='dhondt', umbral=None):
+def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=None, max_seats=300, sistema='mixto', mr_seats=None, rp_seats=None, regla_electoral=None, quota_method='hare', divisor_method='dhondt', umbral=None, max_seats_per_party=None):
     """
     Lee y procesa la base Parquet de diputados, regresa dicts listos para el orquestador.
     - path_parquet: ruta al archivo Parquet
@@ -373,6 +373,71 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
             quota_method=quota_method, divisor_method=divisor_method
         )
     print(f"[DEBUG] Resultado asignadip_v2: {res}")
+    
+    # APLICAR TOPE DE ESCAÑOS POR PARTIDO si está especificado
+    if max_seats_per_party is not None and max_seats_per_party > 0:
+        print(f"[DEBUG] 🎚️ APLICANDO tope de escaños por partido: {max_seats_per_party}")
+        
+        # 1. Calcular totales iniciales
+        for partido in res['tot']:
+            res['tot'][partido] = res['mr'][partido] + res['rp'][partido]
+        
+        # 2. Identificar partidos que superan el tope y acumular sobrantes
+        total_sobrantes = 0
+        partidos_con_tope = []
+        
+        for partido in res['tot']:
+            if res['tot'][partido] > max_seats_per_party:
+                sobrante = res['tot'][partido] - max_seats_per_party
+                total_sobrantes += sobrante
+                partidos_con_tope.append(partido)
+                
+                # Reducir proporcionalmente MR y RP para llegar al tope
+                total_original = res['tot'][partido]
+                factor_reduccion = max_seats_per_party / total_original
+                
+                mr_nuevo = int(res['mr'][partido] * factor_reduccion)
+                rp_nuevo = max_seats_per_party - mr_nuevo
+                
+                print(f"[WARN] Tope aplicado: {partido} tenía {total_original} (MR:{res['mr'][partido]}, RP:{res['rp'][partido]}) → {max_seats_per_party} (MR:{mr_nuevo}, RP:{rp_nuevo})")
+                
+                res['mr'][partido] = mr_nuevo
+                res['rp'][partido] = rp_nuevo
+                res['tot'][partido] = max_seats_per_party
+        
+        # 3. Redistribuir sobrantes a partidos que no han alcanzado el tope
+        if total_sobrantes > 0:
+            partidos_elegibles = [p for p in res['tot'] if res['tot'][p] < max_seats_per_party and votos_ok[p] > 0]
+            
+            if partidos_elegibles:
+                print(f"[DEBUG] Redistribuyendo {total_sobrantes} escaños sobrantes entre {len(partidos_elegibles)} partidos elegibles")
+                
+                # Redistribución proporcional por votos entre partidos elegibles
+                votos_elegibles = {p: votos_ok[p] for p in partidos_elegibles}
+                total_votos_elegibles = sum(votos_elegibles.values())
+                
+                if total_votos_elegibles > 0:
+                    for partido in partidos_elegibles:
+                        proporcion = votos_elegibles[partido] / total_votos_elegibles
+                        asignar = min(int(total_sobrantes * proporcion), max_seats_per_party - res['tot'][partido])
+                        
+                        # Asignar preferentemente a RP
+                        res['rp'][partido] += asignar
+                        res['tot'][partido] += asignar
+                        total_sobrantes -= asignar
+                    
+                    # Asignar escaños restantes uno por uno (round-robin)
+                    while total_sobrantes > 0:
+                        for partido in partidos_elegibles:
+                            if total_sobrantes > 0 and res['tot'][partido] < max_seats_per_party:
+                                res['rp'][partido] += 1
+                                res['tot'][partido] += 1
+                                total_sobrantes -= 1
+        
+        print(f"[DEBUG] ✅ Tope aplicado correctamente - Sobrantes redistribuidos: {total_sobrantes == 0}")
+    else:
+        print(f"[DEBUG] 🎚️ TOPE DE ESCAÑOS max_seats_per_party: {max_seats_per_party}")
+        print(f"[DEBUG] ❌ No se aplica tope de escaños (valor={max_seats_per_party})")
     
     # Retornar el resultado en formato diccionario (compatible con wrapper)
     return res
