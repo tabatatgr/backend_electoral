@@ -278,28 +278,76 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
         mr = mr_calculado
     mr_aligned = {p: int(mr.get(p, 0)) for p in partidos_base}
     
-    # AJUSTE: Redimensionar MR según mr_seats si está especificado
+    # ESCALADO INTELIGENTE: Redimensionar MR según mr_seats si está especificado
     if mr_seats is not None and mr_seats != sum(mr_aligned.values()):
-        print(f"[DEBUG] Ajustando MR de {sum(mr_aligned.values())} a {mr_seats}")
         total_mr_original = sum(mr_aligned.values())
+        print(f"[DEBUG] 🎯 ESCALADO INTELIGENTE: {total_mr_original} → {mr_seats} escaños")
+        
         if total_mr_original > 0:
-            # Redimensionar proporcionalmente
-            factor = mr_seats / total_mr_original
-            mr_adjusted = {}
-            for partido in mr_aligned:
-                mr_adjusted[partido] = int(mr_aligned[partido] * factor)
+            # Calcular factor de escalado
+            factor_escalado = mr_seats / total_mr_original
+            print(f"[DEBUG] 📊 Factor de escalado: {factor_escalado:.3f}")
             
-            # Ajuste final para llegar exacto
-            diferencia = mr_seats - sum(mr_adjusted.values())
-            partidos_ordenados = sorted(mr_aligned.keys(), key=lambda x: mr_aligned[x], reverse=True)
-            for i in range(abs(diferencia)):
-                if diferencia > 0:
-                    mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] += 1
-                elif diferencia < 0 and mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] > 0:
-                    mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] -= 1
+            # PASO 1: Aplicar escalado básico con decimales
+            mr_flotante = {}
+            for partido in mr_aligned:
+                escanos_originales = mr_aligned[partido]
+                escanos_escalados = escanos_originales * factor_escalado
+                mr_flotante[partido] = escanos_escalados
+                if escanos_originales > 0:  # Solo mostrar partidos con escaños
+                    print(f"[DEBUG] 📈 {partido}: {escanos_originales} × {factor_escalado:.3f} = {escanos_escalados:.2f}")
+            
+            # PASO 2: Redondeo inteligente (mantener proporciones)
+            mr_adjusted = {}
+            escanos_asignados = 0
+            
+            # Primero, asignar la parte entera
+            decimales_pendientes = []
+            for partido in mr_aligned:
+                parte_entera = int(mr_flotante[partido])
+                decimal = mr_flotante[partido] - parte_entera
+                mr_adjusted[partido] = parte_entera
+                escanos_asignados += parte_entera
+                
+                if decimal > 0:
+                    decimales_pendientes.append((partido, decimal))
+            
+            # PASO 3: Distribuir escaños restantes por decimales más altos
+            escanos_restantes = mr_seats - escanos_asignados
+            print(f"[DEBUG] 🔢 Escaños por decimales: {escanos_restantes}")
+            
+            # Ordenar por decimal descendente
+            decimales_pendientes.sort(key=lambda x: x[1], reverse=True)
+            
+            for i in range(min(escanos_restantes, len(decimales_pendientes))):
+                partido, decimal = decimales_pendientes[i]
+                mr_adjusted[partido] += 1
+                print(f"[DEBUG] 🎲 {partido} gana 1 escaño adicional (decimal: {decimal:.3f})")
+            
+            # Verificación final
+            total_final = sum(mr_adjusted.values())
+            if total_final == mr_seats:
+                print(f"[DEBUG] ✅ Escalado perfecto: {total_final} escaños")
+            else:
+                print(f"[DEBUG] ⚠️ Ajuste pendiente: {total_final} vs {mr_seats}")
+                
+                # Ajuste fino si hay diferencia
+                diferencia = mr_seats - total_final
+                partidos_ordenados = sorted(mr_aligned.keys(), key=lambda x: mr_aligned[x], reverse=True)
+                
+                for i in range(abs(diferencia)):
+                    if diferencia > 0:
+                        # Dar escaños a los partidos más grandes
+                        mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] += 1
+                    elif diferencia < 0:
+                        # Quitar escaños de los partidos más grandes
+                        if mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] > 0:
+                            mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] -= 1
             
             mr_aligned = mr_adjusted
-            print(f"[DEBUG] MR ajustado a {mr_seats}: {mr_aligned}")
+            print(f"[DEBUG] 🏆 RESULTADO ESCALADO: {mr_aligned}")
+        else:
+            print(f"[DEBUG] ❌ No se puede escalar desde 0 escaños")
     
     print(f"[DEBUG] MR Diputados alineado: {mr_aligned}")
     

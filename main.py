@@ -89,6 +89,18 @@ def simulacion(
 		# Nuevo: tope máximo de escaños por partido (puede venir como parámetro, si no, None)
 		logging.debug(f"[DEBUG] max_seats_per_party recibido en petición: {max_seats_per_party}")
 		
+		# INTELIGENCIA: Si no se especifica tope, derivarlo automáticamente
+		if max_seats_per_party is None and magnitud is not None:
+			# Tope automático: 60% de la magnitud (evita mayorías absolutas)
+			max_seats_per_party_auto = int(magnitud * 0.6)
+			logging.debug(f"[DEBUG] 🤖 Tope automático calculado: {max_seats_per_party_auto} (60% de {magnitud})")
+			# Solo aplicar si es razonable (mínimo 10 escaños)
+			if max_seats_per_party_auto >= 10:
+				max_seats_per_party = max_seats_per_party_auto
+				logging.debug(f"[DEBUG] ✅ Aplicando tope automático: {max_seats_per_party}")
+			else:
+				logging.debug(f"[DEBUG] ❌ Tope automático muy bajo ({max_seats_per_party_auto}), no se aplica")
+		
 		if camara_lower == "diputados":
 			# Lógica existente para diputados personalizado
 			# Define partidos base según año
