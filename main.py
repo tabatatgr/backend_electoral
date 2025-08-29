@@ -34,7 +34,8 @@ from kernel.magnitud import get_magnitud
 from kernel.sobrerrepresentacion import aplicar_limite_sobrerrepresentacion
 from kernel.umbral import aplicar_umbral
 from kernel.regla_electoral import aplicar_regla_electoral
-from kernel.procesar_diputados import procesar_diputados_parquet
+from kernel.wrapper_tablero import procesar_diputados_tablero as procesar_diputados_parquet
+from kernel.asignacion_por_estado import procesar_diputados_por_estado
 from kernel.procesar_senadores import procesar_senadores_parquet
 from kernel.plan_c import procesar_plan_c_diputados
 from kernel.kpi_utils import kpis_votos_escanos
@@ -66,7 +67,8 @@ def simulacion(
 	quota_method: str = Query('hare'),
 	divisor_method: str = Query('dhondt'),
 	max_seats_per_party: int = Query(None),
-	primera_minoria: bool = Query(True)  # Nuevo parámetro para senado
+	primera_minoria: bool = Query(True),  # Parámetro para senado
+	limite_escanos_pm: int = Query(None)  # Límite de escaños para primera minoría
 ):
 	import logging
 	camara_lower = camara.lower()
@@ -124,7 +126,7 @@ def simulacion(
 				resultado_asignadip = procesar_diputados_parquet(
 					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats,
 					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
-					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method
+					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method, umbral=umbral
 				)
 				# Validación robusta del tipo de resultado_asignadip
 				if not isinstance(resultado_asignadip, dict):
@@ -179,30 +181,38 @@ def simulacion(
 					logging.debug("[DEBUG] No se aplica filtro de umbral (None, vacío o 0)")
 				
 				# Aplicar límite de sobrerrepresentación solo para Diputados
-				logging.debug(f"[DEBUG] sobrerrepresentacion recibida en petición: {sobrerrepresentacion}")
+				print(f"[DEBUG] ⚖️ SOBRERREPRESENTACIÓN recibida en petición: {sobrerrepresentacion}")
 				if camara_lower == "diputados":
 					if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
+						print(f"[DEBUG] ✅ Aplicando sobrerrepresentación para DIPUTADOS")
 						limite_sobre = sobrerrepresentacion
 						if limite_sobre >= 1:
-							logging.warning(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
+							print(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
 							limite_sobre = limite_sobre / 100
-						logging.debug(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
+						print(f"[DEBUG] 🎯 Aplicando límite de sobrerrepresentación: {limite_sobre}")
+						seat_chart_antes = [{'party': p['party'], 'seats': p['seats']} for p in seat_chart[:3]]
+						print(f"[DEBUG] ANTES sobrerrepresentación: {seat_chart_antes}")
 						seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
+						seat_chart_despues = [{'party': p['party'], 'seats': p['seats']} for p in seat_chart[:3]]
+						print(f"[DEBUG] DESPUÉS sobrerrepresentación: {seat_chart_despues}")
 					else:
-						logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
+						print(f"[DEBUG] ❌ No se aplica límite de sobrerrepresentación (valor={sobrerrepresentacion})")
 				else:
-					logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación para cámara distinta a Diputados")
+					print(f"[DEBUG] ❌ No se aplica límite de sobrerrepresentación para cámara: {camara_lower}")
 				
 				# Aplicar tope de escaños por partido si está definido (solo para Diputados)
 				if camara_lower == "diputados":
-					logging.debug(f"[DEBUG] max_seats_per_party (Diputados): {max_seats_per_party}")
+					print(f"[DEBUG] 🎚️ TOPE DE ESCAÑOS max_seats_per_party: {max_seats_per_party}")
 					if max_seats_per_party is not None and max_seats_per_party > 0:
+						print(f"[DEBUG] ✅ Aplicando TOPE DE ESCAÑOS por partido: {max_seats_per_party}")
 						sobrantes = 0
 						# 1. Recortar partidos que superan el tope y acumular sobrantes
+						seat_chart_antes_tope = [{'party': p['party'], 'seats': p['seats']} for p in seat_chart[:3]]
+						print(f"[DEBUG] ANTES tope escaños: {seat_chart_antes_tope}")
 						for p in seat_chart:
 							if p['seats'] > max_seats_per_party:
 								sobrantes += p['seats'] - max_seats_per_party
-								logging.warning(f"[WARN] Tope de escaños por partido aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
+								print(f"[WARN] 🚨 Tope de escaños aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
 								p['seats'] = max_seats_per_party
 						# 2. Reasignar sobrantes proporcionalmente a los partidos que no han alcanzado el tope
 						while sobrantes > 0:
@@ -251,9 +261,16 @@ def simulacion(
 									ajuste += 1
 									if ajuste == 0:
 										break
+					else:
+						print(f"[DEBUG] ❌ No se aplica tope de escaños (valor={max_seats_per_party})")
+				else:
+					print(f"[DEBUG] ❌ No se aplica tope de escaños para cámara: {camara_lower}")
 				
 				# Recalcular totales finales después de aplicar TODOS los filtros
 				total_curules = sum([p["seats"] for p in seat_chart]) or 1
+				print(f"[DEBUG] 🏁 RESULTADO FINAL después de sobrerrepresentación y tope:")
+				final_top3 = [{'party': p['party'], 'seats': p['seats']} for p in seat_chart[:3]]
+				print(f"[DEBUG] Top 3 final: {final_top3}, Total escaños: {total_curules}")
 				
 				# Recalcular porcentajes después de todos los filtros
 				for p in seat_chart:
@@ -306,16 +323,18 @@ def simulacion(
 			# Para senado, magnitud normalmente es 128, pero puede venir del frontend
 			max_seats = magnitud if magnitud is not None else 128
 			total_rp_seats = mixto_rp_seats if mixto_rp_seats is not None else 32  # 32 escaños de RP en senado
+			total_mr_seats = mixto_mr_seats if mixto_mr_seats is not None else None  # MR puede limitarse con slider
 			umbral_senado = umbral if umbral is not None else 0.03  # 3% por defecto para senado
 			
-			print(f"[DEBUG] Senado - magnitud: {max_seats}, RP seats: {total_rp_seats}, umbral: {umbral_senado}")
+			print(f"[DEBUG] Senado - magnitud: {max_seats}, RP seats: {total_rp_seats}, MR seats: {total_mr_seats}, umbral: {umbral_senado}")
 			print(f"[DEBUG] Senado - primera_minoria: {primera_minoria}")
 			
 			try:
 				resultado_asignasen = procesar_senadores_parquet(
 					parquet_path, partidos_base, anio, path_siglado=siglado_path, 
-					total_rp_seats=total_rp_seats, umbral=umbral_senado,
-					quota_method=quota_method, divisor_method=divisor_method
+					total_rp_seats=total_rp_seats, total_mr_seats=total_mr_seats, umbral=umbral_senado,
+					quota_method=quota_method, divisor_method=divisor_method,
+					primera_minoria=primera_minoria, limite_escanos_pm=limite_escanos_pm
 				)
 				
 				# Validación del resultado
@@ -431,7 +450,7 @@ def simulacion(
 				resultado_asignadip = procesar_diputados_parquet(
 					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats,
 					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
-					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method
+					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method, umbral=umbral
 				)
 				# Validación robusta del tipo de resultado_asignadip
 				if not isinstance(resultado_asignadip, dict):

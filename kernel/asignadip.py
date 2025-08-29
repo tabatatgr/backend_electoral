@@ -2,6 +2,8 @@ from decimal import Decimal, getcontext
 getcontext().prec = 28
 from kernel.quota_methods import hare_quota, droop_quota, exact_droop_quota
 from kernel.divisor_methods import dhondt_divisor
+from kernel.lr_ties import lr_ties
+import numpy as np
 
 # Orquestador para la asignación de diputados (tipo asignadip_v2 de R)
 def asignadip_v2(
@@ -18,6 +20,7 @@ def asignadip_v2(
     apply_caps=True,
     quota_method='hare',
     divisor_method='dhondt',
+    seed=None,
     print_debug=False
 ):
     """
@@ -53,27 +56,31 @@ def asignadip_v2(
         s_rp = {p: 0 for p in partidos}
         s_tot = {p: s_mr[p] for p in partidos}
     elif sum(ssd.values()) == 0:
-        # Solo RP
-        if quota_method in quota_map and m > 0:
-            s_rp_init = quota_map[quota_method](m, votos_ok, sum(votos_ok.values()))
-        elif divisor_method == 'dhondt' and m > 0:
-            s_rp_init = dhondt_divisor(m, votos_ok)
-        else:
-            s_rp_init = {p: 0 for p in partidos}
+        # Solo RP usando lr_ties (método idéntico a R)
         s_mr = {p: 0 for p in partidos}
-        s_rp = {p: int(s_rp_init.get(p, 0)) for p in partidos}
+        if m > 0 and sum(votos_ok.values()) > 0:
+            # Usar lr_ties como en el código R
+            votos_list = [votos_ok[p] for p in partidos]
+            q = sum(votos_list) / m if m > 0 else None
+            s_rp_list = lr_ties(votos_list, m, q=q, seed=seed)
+            s_rp = {partidos[i]: int(s_rp_list[i]) for i in range(len(partidos))}
+        else:
+            s_rp = {p: 0 for p in partidos}
         s_tot = {p: s_rp[p] for p in partidos}
     else:
-        # Mixto
-        if quota_method in quota_map and m > 0:
-            s_rp_init = quota_map[quota_method](m, votos_ok, sum(votos_ok.values()))
-        elif divisor_method == 'dhondt' and m > 0:
-            s_rp_init = dhondt_divisor(m, votos_ok)
-        else:
-            s_rp_init = {p: 0 for p in partidos}
+        # Mixto usando lr_ties para la parte RP
         v_nacional = {p: votos_ok[p] / sum(votos_ok.values()) if sum(votos_ok.values()) > 0 else 0 for p in partidos}
         s_mr = {p: int(ssd.get(p, 0)) for p in partidos}
-        s_rp = {p: int(s_rp_init.get(p, 0)) for p in partidos}
+        
+        if m > 0 and sum(votos_ok.values()) > 0:
+            # Usar lr_ties para asignación inicial RP
+            votos_list = [votos_ok[p] for p in partidos]
+            q = sum(votos_list) / m if m > 0 else None
+            s_rp_list = lr_ties(votos_list, m, q=q, seed=seed)
+            s_rp = {partidos[i]: int(s_rp_list[i]) for i in range(len(partidos))}
+        else:
+            s_rp = {p: 0 for p in partidos}
+            
         s_tot = {p: s_mr[p] + s_rp[p] for p in partidos}
 
     # Topes nacionales solo si hay RP o mixto
@@ -101,16 +108,18 @@ def asignadip_v2(
                     if p not in fixed and ok[p]:
                         s_rp[p] = 0
             else:
-                # Reparto de restos: permite elegir un método diferente para los restos
-                if divisor_method == 'dhondt':
-                    s_rp_add = dhondt_divisor(n_rest, v_eff)
-                elif quota_method in quota_map:
-                    s_rp_add = quota_map[quota_method](n_rest, v_eff, sum(v_eff.values()))
-                else:
-                    s_rp_add = {p: 0 for p in partidos}
-                for p in partidos:
+                # Reasignación usando lr_ties como en R
+                votos_eff_list = [v_eff[p] for p in partidos]
+                q_eff = sum(votos_eff_list) / n_rest if n_rest > 0 else None
+                s_rp_add_list = lr_ties(votos_eff_list, n_rest, q=q_eff, seed=seed)
+                
+                for i, p in enumerate(partidos):
                     if p not in fixed and ok[p]:
-                        s_rp[p] = s_rp_add.get(p, 0)
+                        s_rp[p] = int(s_rp_add_list[i])
+                    elif p in fixed:
+                        s_rp[p] = max(0, lim_max[p] - s_mr[p])
+                    else:
+                        s_rp[p] = 0
             s_tot = {p: s_mr[p] + s_rp[p] for p in partidos}
     # Salida
     if print_debug:

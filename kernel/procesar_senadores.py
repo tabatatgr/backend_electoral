@@ -30,7 +30,7 @@ def normalize_entidad(x):
     x = re.sub(r'\s+', ' ', x)
     return x
 
-def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=None, total_rp_seats=32, umbral=0.03, quota_method='hare', divisor_method='dhondt', primera_minoria=True, limite_escanos_pm=None):
+def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=None, total_rp_seats=32, total_mr_seats=None, umbral=0.03, quota_method='hare', divisor_method='dhondt', primera_minoria=True, limite_escanos_pm=None):
     """
     Procesa la base Parquet de senadores y regresa lista de dicts lista para el orquestador y seat chart.
     - path_parquet: ruta al archivo Parquet
@@ -166,6 +166,7 @@ def procesar_senadores_parquet(path_parquet, partidos_base, anio, path_siglado=N
             [{'party': p} for p in pm_list],
             resultados_rp,
             total_rp_seats=total_rp_seats,
+            total_mr_seats=total_mr_seats,
             umbral=umbral,
             quota_method=quota_method,
             divisor_method=divisor_method,
