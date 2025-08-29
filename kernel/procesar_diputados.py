@@ -321,12 +321,15 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
         resultado_por_estado = asignar_rp_por_estado(df, partidos_base, quota_method, divisor_method, umbral)
         
         # Para RP puro, usar directamente los resultados por estado
-        resultado = {
+        res = {
             'mr': {p: 0 for p in partidos_base},
             'rp': resultado_por_estado['rp'],
             'tot': resultado_por_estado['rp'].copy(),
-            'votos': votos_ok
+            'ok': {p: True for p in partidos_base},
+            'votos': votos_ok,
+            'votos_ok': votos_ok
         }
+        return res
         
     # Si es sistema mixto, usar método tradicional nacional con topes
     elif sistema_tipo == 'mixto':
@@ -346,36 +349,6 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
             quota_method=quota_method, divisor_method=divisor_method
         )
     print(f"[DEBUG] Resultado asignadip_v2: {res}")
-    salida = []
-    for p in partidos_base:
-        salida.append({
-            'partido': p,
-            'votos': votos_ok[p],
-            'mr': ssd[p],
-            'rp': int(res['rp'].get(p, 0)),
-            'curules': int(res['tot'].get(p, 0))
-        })
-    # Independientes
-    if indep > 0:
-        salida.append({'partido': 'CI', 'votos': indep, 'mr': 0, 'rp': 0, 'curules': indep})
-    # --- Ajuste para que la suma final de curules sea igual a max_seats ---
-    total_curules = sum(x['curules'] for x in salida)
-    diferencia = max_seats - total_curules
-    if diferencia != 0 and len(salida) > 0:
-        # Solo partidos que pasaron el umbral (sin CI)
-        partidos_orden = [x for x in salida if x['partido'] != 'CI' and votos_ok[x['partido']] > 0]
-        partidos_orden.sort(key=lambda x: x['votos'], reverse=True)
-        if diferencia > 0:
-            # Añadir curules a los partidos con más votos
-            for i in range(diferencia):
-                partidos_orden[i % len(partidos_orden)]['curules'] += 1
-        else:
-            # Quitar curules a los partidos con más curules
-            for i in range(-diferencia):
-                for x in partidos_orden:
-                    if x['curules'] > 0:
-                        x['curules'] -= 1
-                        break
     
-    # Retornar la lista formateada para compatibilidad
-    return salida
+    # Retornar el resultado en formato diccionario (compatible con wrapper)
+    return res
