@@ -13,13 +13,13 @@ app.add_middleware(
 	allow_headers=["*"],
 )
 
-# Mapea colores por partido (puedes agregar más)
+# Mapea colores por partido
 PARTY_COLORS = {
 	"MORENA": "#8B2231",
 	"PAN": "#0055A5",
 	"PRI": "#0D7137",
 	"PT": "#D52B1E",
-	"PVEM": "#5CE23D",
+	"PVEM": "#1E9F00",
 	"MC": "#F58025",
 	"PRD": "#FFCC00",
 	"PES": "#6A1B9A",
@@ -117,6 +117,74 @@ def simulacion(
 			print(f"[DEBUG] magnitud recibida en petición: {magnitud}")
 			print(f"[DEBUG] umbral recibido en petición: {umbral}")
 			max_seats = magnitud if magnitud is not None else 300
+			
+			# ✨ VALIDACIONES INTELIGENTES Y ROBUSTAS ✨
+			print(f"[INFO] Aplicando validaciones inteligentes...")
+			
+			# === 1. VALIDAR QUE LA SUMA NO EXCEDA EL TOTAL ===
+			if mixto_mr_seats is not None and mixto_rp_seats is not None:
+				suma_total = mixto_mr_seats + mixto_rp_seats
+				if suma_total != max_seats:
+					print(f"[ERROR] ❌ Suma inválida: MR({mixto_mr_seats}) + RP({mixto_rp_seats}) = {suma_total} ≠ {max_seats} total")
+					# AJUSTE INTELIGENTE: Si se especificaron ambos pero no suman bien, ajustar RP
+					if suma_total > max_seats:
+						mixto_rp_seats = max_seats - mixto_mr_seats
+						print(f"[FIX] 🔧 Auto-ajustando RP: {mixto_rp_seats} para que sume {max_seats}")
+					elif suma_total < max_seats:
+						mixto_rp_seats = max_seats - mixto_mr_seats  
+						print(f"[FIX] 🔧 Auto-completando RP: {mixto_rp_seats} para que sume {max_seats}")
+			
+			# === 2. SLIDERS INTELIGENTES (si solo se especifica uno) ===
+			elif mixto_mr_seats is not None and mixto_rp_seats is None:
+				# Usuario movió slider MR → ajustar RP automáticamente
+				mixto_rp_seats = max_seats - mixto_mr_seats
+				print(f"[AUTO] 🎛️  Slider inteligente: MR={mixto_mr_seats} → RP auto-ajustado a {mixto_rp_seats}")
+				
+			elif mixto_rp_seats is not None and mixto_mr_seats is None:
+				# Usuario movió slider RP → ajustar MR automáticamente  
+				mixto_mr_seats = max_seats - mixto_rp_seats
+				print(f"[AUTO] 🎛️  Slider inteligente: RP={mixto_rp_seats} → MR auto-ajustado a {mixto_mr_seats}")
+			
+			# === 3. VALIDACIONES DE RANGOS SENSATOS ===
+			if mixto_mr_seats is not None:
+				# Validar que MR esté en rango sensato (mínimo 10%, máximo 90%)
+				min_mr = max(1, max_seats // 10)  # Mínimo 10% pero al menos 1
+				max_mr = max_seats - max(1, max_seats // 10)  # Máximo 90%
+				
+				if mixto_mr_seats < min_mr:
+					print(f"[WARN] ⚠️  mixto_mr_seats={mixto_mr_seats} muy bajo (min {min_mr}), ajustando...")
+					mixto_mr_seats = min_mr
+					mixto_rp_seats = max_seats - mixto_mr_seats
+				elif mixto_mr_seats > max_mr:
+					print(f"[WARN] ⚠️  mixto_mr_seats={mixto_mr_seats} muy alto (max {max_mr}), ajustando...")
+					mixto_mr_seats = max_mr
+					mixto_rp_seats = max_seats - mixto_mr_seats
+			
+			if mixto_rp_seats is not None:
+				# Validar que RP esté en rango sensato (mínimo 10%, máximo 90%)
+				min_rp = max(1, max_seats // 10)
+				max_rp = max_seats - max(1, max_seats // 10)
+				
+				if mixto_rp_seats < min_rp:
+					print(f"[WARN] ⚠️  mixto_rp_seats={mixto_rp_seats} muy bajo (min {min_rp}), ajustando...")
+					mixto_rp_seats = min_rp
+					mixto_mr_seats = max_seats - mixto_rp_seats
+				elif mixto_rp_seats > max_rp:
+					print(f"[WARN] ⚠️  mixto_rp_seats={mixto_rp_seats} muy alto (max {max_rp}), ajustando...")
+					mixto_rp_seats = max_rp
+					mixto_mr_seats = max_seats - mixto_rp_seats
+			
+			# === 4. VALIDACIÓN FINAL: ASEGURAR QUE SUMA SEA EXACTA ===
+			if mixto_mr_seats is not None and mixto_rp_seats is not None:
+				suma_final = mixto_mr_seats + mixto_rp_seats
+				if suma_final != max_seats:
+					# Esto no debería pasar, pero por seguridad
+					print(f"[ERROR] ❌ Suma final incorrecta: {suma_final} ≠ {max_seats}")
+					mixto_rp_seats = max_seats - mixto_mr_seats
+					print(f"[FIX] 🔧 Forzando corrección: RP = {mixto_rp_seats}")
+			
+			print(f"[RESULT] ✅ Validaciones completadas: MR={mixto_mr_seats}, RP={mixto_rp_seats}, Total={max_seats}")
+			
 			# Determinar sistema y escaños MR/RP
 			sistema_tipo = sistema.lower() if sistema else 'mixto'
 			mr_seats = mixto_mr_seats if mixto_mr_seats is not None else (max_seats // 2 if sistema_tipo == 'mixto' else (max_seats if sistema_tipo == 'mr' else 0))

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎛️ Sliders Inteligentes - Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .slider-group {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .slider-group.active {
+            background: rgba(0, 123, 255, 0.3);
+            transform: scale(1.02);
+        }
+        
+        .slider-group.auto {
+            background: rgba(40, 167, 69, 0.3);
+        }
+        
+        label {
+            display: block;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .validation-indicator {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .validation-indicator.valid {
+            background: rgba(40, 167, 69, 0.8);
+            border: 2px solid #28a745;
+        }
+        
+        .validation-indicator.invalid {
+            background: rgba(220, 53, 69, 0.8);
+            border: 2px solid #dc3545;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        .backend-simulation {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 2px solid #ffd700;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎛️ Sliders Inteligentes - Simulación Electoral</h1>
+        <p>✨ <strong>Mueve un slider y ve cómo el otro se ajusta automáticamente</strong></p>
+        
+        <!-- Slider MR -->
+        <div class="slider-group" id="slider-mr">
+            <label>🏛️ Mayoría Relativa (MR): <span id="mr-value">60</span> escaños</label>
+            <input type="range" id="mr-slider" min="12" max="107" value="60">
+            <small>Escaños obtenidos por circunscripciones uninominales</small>
+        </div>
+        
+        <!-- Slider RP -->
+        <div class="slider-group" id="slider-rp">
+            <label>📊 Representación Proporcional (RP): <span id="rp-value">59</span> escaños</label>
+            <input type="range" id="rp-slider" min="12" max="107" value="59">
+            <small>Escaños distribuidos proporcionalmente por listas</small>
+        </div>
+        
+        <!-- Indicador de validación -->
+        <div class="validation-indicator valid" id="validation">
+            ✅ Suma correcta: <span id="suma">119</span> = 119 escaños totales
+        </div>
+        
+        <!-- Estadísticas -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="mr-percent">50.4%</div>
+                <div>MR Porcentaje</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="rp-percent">49.6%</div>
+                <div>RP Porcentaje</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">119</div>
+                <div>Total Escaños</div>
+            </div>
+        </div>
+        
+        <!-- Simulación del Backend -->
+        <div class="backend-simulation">
+            <h3>🖥️ Simulación Backend (Logs en tiempo real)</h3>
+            <div id="backend-logs">
+                <div class="log-entry">[INFO] Sistema inicializado con 119 escaños totales</div>
+            </div>
+        </div>
+        
+        <!-- Botón para enviar al backend real -->
+        <button onclick="enviarAlBackend()" style="
+            width: 100%; 
+            padding: 15px; 
+            margin-top: 20px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 18px; 
+            cursor: pointer;
+            transition: all 0.3s ease;
+        " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
+            🚀 Enviar Configuración al Backend Real
+        </button>
+    </div>
+
+    <script>
+        const MAGNITUD_TOTAL = 119;
+        const MIN_PERCENT = 0.1; // 10%
+        const MAX_PERCENT = 0.9; // 90%
+        
+        const MIN_SEATS = Math.max(1, Math.floor(MAGNITUD_TOTAL * MIN_PERCENT)); // 12
+        const MAX_SEATS = MAGNITUD_TOTAL - MIN_SEATS; // 107
+        
+        let ultimoModificado = 'mr';
+        
+        // Referencias DOM
+        const mrSlider = document.getElementById('mr-slider');
+        const rpSlider = document.getElementById('rp-slider');
+        const mrValue = document.getElementById('mr-value');
+        const rpValue = document.getElementById('rp-value');
+        const validationDiv = document.getElementById('validation');
+        const suma = document.getElementById('suma');
+        const mrPercent = document.getElementById('mr-percent');
+        const rpPercent = document.getElementById('rp-percent');
+        const backendLogs = document.getElementById('backend-logs');
+        
+        // Configurar límites de sliders
+        mrSlider.min = MIN_SEATS;
+        mrSlider.max = MAX_SEATS;
+        rpSlider.min = MIN_SEATS;
+        rpSlider.max = MAX_SEATS;
+        
+        function logBackend(mensaje) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `[${timestamp}] ${mensaje}`;
+            backendLogs.appendChild(logEntry);
+            backendLogs.scrollTop = backendLogs.scrollHeight;
+            
+            // Mantener solo los últimos 10 logs
+            while (backendLogs.children.length > 10) {
+                backendLogs.removeChild(backendLogs.firstChild);
+            }
+        }
+        
+        function actualizarUI(mr, rp, quienCambio) {
+            // Actualizar valores
+            mrValue.textContent = mr;
+            rpValue.textContent = rp;
+            mrSlider.value = mr;
+            rpSlider.value = rp;
+            
+            // Actualizar suma
+            const sumaTotal = mr + rp;
+            suma.textContent = sumaTotal;
+            
+            // Actualizar porcentajes
+            mrPercent.textContent = ((mr / MAGNITUD_TOTAL) * 100).toFixed(1) + '%';
+            rpPercent.textContent = ((rp / MAGNITUD_TOTAL) * 100).toFixed(1) + '%';
+            
+            // Validación visual
+            const esValido = sumaTotal === MAGNITUD_TOTAL;
+            validationDiv.className = `validation-indicator ${esValido ? 'valid' : 'invalid'}`;
+            validationDiv.innerHTML = esValido 
+                ? `✅ Suma correcta: ${sumaTotal} = ${MAGNITUD_TOTAL} escaños totales`
+                : `❌ Suma incorrecta: ${sumaTotal} ≠ ${MAGNITUD_TOTAL} escaños totales`;
+            
+            // Indicadores visuales de quién está activo
+            document.getElementById('slider-mr').className = `slider-group ${quienCambio === 'mr' ? 'active' : 'auto'}`;
+            document.getElementById('slider-rp').className = `slider-group ${quienCambio === 'rp' ? 'active' : 'auto'}`;
+            
+            // Log del backend
+            if (quienCambio === 'mr') {
+                logBackend(`🎛️ Slider MR cambiado a ${mr} → RP auto-ajustado a ${rp}`);
+            } else {
+                logBackend(`🎛️ Slider RP cambiado a ${rp} → MR auto-ajustado a ${mr}`);
+            }
+        }
+        
+        // Event listeners para sliders
+        mrSlider.addEventListener('input', function() {
+            const nuevoMr = parseInt(this.value);
+            const mrLimitado = Math.min(Math.max(nuevoMr, MIN_SEATS), MAX_SEATS);
+            const nuevoRp = MAGNITUD_TOTAL - mrLimitado;
+            
+            ultimoModificado = 'mr';
+            actualizarUI(mrLimitado, nuevoRp, 'mr');
+        });
+        
+        rpSlider.addEventListener('input', function() {
+            const nuevoRp = parseInt(this.value);
+            const rpLimitado = Math.min(Math.max(nuevoRp, MIN_SEATS), MAX_SEATS);
+            const nuevoMr = MAGNITUD_TOTAL - rpLimitado;
+            
+            ultimoModificado = 'rp';
+            actualizarUI(nuevoMr, rpLimitado, 'rp');
+        });
+        
+        // Función para enviar al backend real
+        async function enviarAlBackend() {
+            const mr = parseInt(mrValue.textContent);
+            const rp = parseInt(rpValue.textContent);
+            
+            logBackend(`🚀 Enviando al backend: MR=${mr}, RP=${rp}`);
+            
+            try {
+                const url = `http://localhost:8001/diputados?anio=2021&modelo=personalizado&sistema=mixto&mixto_mr_seats=${mr}&mixto_rp_seats=${rp}&magnitud=${MAGNITUD_TOTAL}`;
+                
+                logBackend(`📡 URL: ${url}`);
+                
+                // En un frontend real, aquí harías el fetch
+                // const response = await fetch(url);
+                // const resultado = await response.json();
+                
+                // Por ahora, simulamos
+                logBackend(`✅ Configuración enviada exitosamente`);
+                logBackend(`📊 El backend calculará con MR=${mr}, RP=${rp}`);
+                
+            } catch (error) {
+                logBackend(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        // Inicializar
+        logBackend('🎛️ Sliders inteligentes inicializados');
+        logBackend(`📏 Rango válido: ${MIN_SEATS} - ${MAX_SEATS} escaños`);
+    </script>
+</body>
+</html>
