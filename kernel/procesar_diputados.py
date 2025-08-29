@@ -277,6 +277,30 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
         print(f"[DEBUG] Sin siglado - usando cálculo directo por votos")
         mr = mr_calculado
     mr_aligned = {p: int(mr.get(p, 0)) for p in partidos_base}
+    
+    # AJUSTE: Redimensionar MR según mr_seats si está especificado
+    if mr_seats is not None and mr_seats != sum(mr_aligned.values()):
+        print(f"[DEBUG] Ajustando MR de {sum(mr_aligned.values())} a {mr_seats}")
+        total_mr_original = sum(mr_aligned.values())
+        if total_mr_original > 0:
+            # Redimensionar proporcionalmente
+            factor = mr_seats / total_mr_original
+            mr_adjusted = {}
+            for partido in mr_aligned:
+                mr_adjusted[partido] = int(mr_aligned[partido] * factor)
+            
+            # Ajuste final para llegar exacto
+            diferencia = mr_seats - sum(mr_adjusted.values())
+            partidos_ordenados = sorted(mr_aligned.keys(), key=lambda x: mr_aligned[x], reverse=True)
+            for i in range(abs(diferencia)):
+                if diferencia > 0:
+                    mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] += 1
+                elif diferencia < 0 and mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] > 0:
+                    mr_adjusted[partidos_ordenados[i % len(partidos_ordenados)]] -= 1
+            
+            mr_aligned = mr_adjusted
+            print(f"[DEBUG] MR ajustado a {mr_seats}: {mr_aligned}")
+    
     print(f"[DEBUG] MR Diputados alineado: {mr_aligned}")
     
     # Usar umbral del parámetro o valor por defecto
@@ -337,7 +361,7 @@ def procesar_diputados_parquet(path_parquet, partidos_base, anio, path_siglado=N
         # Usar asignadip_v2 con MR reales + RP nacional + topes
         res = asignadip_v2(
             votos_ok, ssd, indep=indep, nulos=0, no_reg=0, m=m, S=S,
-            threshold=umbral, max_seats=300, max_pp=0.08, apply_caps=True,
+            threshold=umbral, max_seats=max_seats, max_pp=0.08, apply_caps=True,
             quota_method=quota_method, divisor_method=divisor_method
         )
         

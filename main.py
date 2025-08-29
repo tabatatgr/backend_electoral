@@ -125,25 +125,25 @@ def simulacion(
 			if mixto_mr_seats is not None and mixto_rp_seats is not None:
 				suma_total = mixto_mr_seats + mixto_rp_seats
 				if suma_total != max_seats:
-					print(f"[ERROR] ❌ Suma inválida: MR({mixto_mr_seats}) + RP({mixto_rp_seats}) = {suma_total} ≠ {max_seats} total")
+					print(f"[ERROR] Suma inválida: MR({mixto_mr_seats}) + RP({mixto_rp_seats}) = {suma_total} ≠ {max_seats} total")
 					# AJUSTE INTELIGENTE: Si se especificaron ambos pero no suman bien, ajustar RP
 					if suma_total > max_seats:
 						mixto_rp_seats = max_seats - mixto_mr_seats
-						print(f"[FIX] 🔧 Auto-ajustando RP: {mixto_rp_seats} para que sume {max_seats}")
+						print(f"[FIX] Auto-ajustando RP: {mixto_rp_seats} para que sume {max_seats}")
 					elif suma_total < max_seats:
 						mixto_rp_seats = max_seats - mixto_mr_seats  
-						print(f"[FIX] 🔧 Auto-completando RP: {mixto_rp_seats} para que sume {max_seats}")
+						print(f"[FIX] Auto-completando RP: {mixto_rp_seats} para que sume {max_seats}")
 			
 			# === 2. SLIDERS INTELIGENTES (si solo se especifica uno) ===
 			elif mixto_mr_seats is not None and mixto_rp_seats is None:
 				# Usuario movió slider MR → ajustar RP automáticamente
 				mixto_rp_seats = max_seats - mixto_mr_seats
-				print(f"[AUTO] 🎛️  Slider inteligente: MR={mixto_mr_seats} → RP auto-ajustado a {mixto_rp_seats}")
+				print(f"[AUTO]  Slider inteligente: MR={mixto_mr_seats} → RP auto-ajustado a {mixto_rp_seats}")
 				
 			elif mixto_rp_seats is not None and mixto_mr_seats is None:
 				# Usuario movió slider RP → ajustar MR automáticamente  
 				mixto_mr_seats = max_seats - mixto_rp_seats
-				print(f"[AUTO] 🎛️  Slider inteligente: RP={mixto_rp_seats} → MR auto-ajustado a {mixto_mr_seats}")
+				print(f"[AUTO]  Slider inteligente: RP={mixto_rp_seats} → MR auto-ajustado a {mixto_mr_seats}")
 			
 			# === 3. VALIDACIONES DE RANGOS SENSATOS ===
 			if mixto_mr_seats is not None:
@@ -152,11 +152,11 @@ def simulacion(
 				max_mr = max_seats - max(1, max_seats // 10)  # Máximo 90%
 				
 				if mixto_mr_seats < min_mr:
-					print(f"[WARN] ⚠️  mixto_mr_seats={mixto_mr_seats} muy bajo (min {min_mr}), ajustando...")
+					print(f"[WARN]  mixto_mr_seats={mixto_mr_seats} muy bajo (min {min_mr}), ajustando...")
 					mixto_mr_seats = min_mr
 					mixto_rp_seats = max_seats - mixto_mr_seats
 				elif mixto_mr_seats > max_mr:
-					print(f"[WARN] ⚠️  mixto_mr_seats={mixto_mr_seats} muy alto (max {max_mr}), ajustando...")
+					print(f"[WARN]  mixto_mr_seats={mixto_mr_seats} muy alto (max {max_mr}), ajustando...")
 					mixto_mr_seats = max_mr
 					mixto_rp_seats = max_seats - mixto_mr_seats
 			
@@ -166,11 +166,11 @@ def simulacion(
 				max_rp = max_seats - max(1, max_seats // 10)
 				
 				if mixto_rp_seats < min_rp:
-					print(f"[WARN] ⚠️  mixto_rp_seats={mixto_rp_seats} muy bajo (min {min_rp}), ajustando...")
+					print(f"[WARN]  mixto_rp_seats={mixto_rp_seats} muy bajo (min {min_rp}), ajustando...")
 					mixto_rp_seats = min_rp
 					mixto_mr_seats = max_seats - mixto_rp_seats
 				elif mixto_rp_seats > max_rp:
-					print(f"[WARN] ⚠️  mixto_rp_seats={mixto_rp_seats} muy alto (max {max_rp}), ajustando...")
+					print(f"[WARN]  mixto_rp_seats={mixto_rp_seats} muy alto (max {max_rp}), ajustando...")
 					mixto_rp_seats = max_rp
 					mixto_mr_seats = max_seats - mixto_rp_seats
 			
@@ -179,11 +179,11 @@ def simulacion(
 				suma_final = mixto_mr_seats + mixto_rp_seats
 				if suma_final != max_seats:
 					# Esto no debería pasar, pero por seguridad
-					print(f"[ERROR] ❌ Suma final incorrecta: {suma_final} ≠ {max_seats}")
+					print(f"[ERROR] Suma final incorrecta: {suma_final} ≠ {max_seats}")
 					mixto_rp_seats = max_seats - mixto_mr_seats
-					print(f"[FIX] 🔧 Forzando corrección: RP = {mixto_rp_seats}")
+					print(f"[FIX] Forzando corrección: RP = {mixto_rp_seats}")
 			
-			print(f"[RESULT] ✅ Validaciones completadas: MR={mixto_mr_seats}, RP={mixto_rp_seats}, Total={max_seats}")
+			print(f"[RESULT] Validaciones completadas: MR={mixto_mr_seats}, RP={mixto_rp_seats}, Total={max_seats}")
 			
 			# Determinar sistema y escaños MR/RP
 			sistema_tipo = sistema.lower() if sistema else 'mixto'
@@ -252,27 +252,27 @@ def simulacion(
 				print(f"[DEBUG] ⚖️ SOBRERREPRESENTACIÓN recibida en petición: {sobrerrepresentacion}")
 				if camara_lower == "diputados":
 					if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
-						print(f"[DEBUG] ✅ Aplicando sobrerrepresentación para DIPUTADOS")
+						print(f"[DEBUG] Aplicando sobrerrepresentación para DIPUTADOS")
 						limite_sobre = sobrerrepresentacion
 						if limite_sobre >= 1:
 							print(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
 							limite_sobre = limite_sobre / 100
-						print(f"[DEBUG] 🎯 Aplicando límite de sobrerrepresentación: {limite_sobre}")
+						print(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
 						seat_chart_antes = [{'party': p['party'], 'seats': p['seats']} for p in seat_chart[:3]]
 						print(f"[DEBUG] ANTES sobrerrepresentación: {seat_chart_antes}")
 						seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
 						seat_chart_despues = [{'party': p['party'], 'seats': p['seats']} for p in seat_chart[:3]]
 						print(f"[DEBUG] DESPUÉS sobrerrepresentación: {seat_chart_despues}")
 					else:
-						print(f"[DEBUG] ❌ No se aplica límite de sobrerrepresentación (valor={sobrerrepresentacion})")
+						print(f"[DEBUG] No se aplica límite de sobrerrepresentación (valor={sobrerrepresentacion})")
 				else:
-					print(f"[DEBUG] ❌ No se aplica límite de sobrerrepresentación para cámara: {camara_lower}")
+					print(f"[DEBUG] No se aplica límite de sobrerrepresentación para cámara: {camara_lower}")
 				
 				# Aplicar tope de escaños por partido si está definido (solo para Diputados)
 				if camara_lower == "diputados":
-					print(f"[DEBUG] 🎚️ TOPE DE ESCAÑOS max_seats_per_party: {max_seats_per_party}")
+					print(f"[DEBUG] TOPE DE ESCAÑOS max_seats_per_party: {max_seats_per_party}")
 					if max_seats_per_party is not None and max_seats_per_party > 0:
-						print(f"[DEBUG] ✅ Aplicando TOPE DE ESCAÑOS por partido: {max_seats_per_party}")
+						print(f"[DEBUG] Aplicando TOPE DE ESCAÑOS por partido: {max_seats_per_party}")
 						sobrantes = 0
 						# 1. Recortar partidos que superan el tope y acumular sobrantes
 						seat_chart_antes_tope = [{'party': p['party'], 'seats': p['seats']} for p in seat_chart[:3]]
@@ -280,7 +280,7 @@ def simulacion(
 						for p in seat_chart:
 							if p['seats'] > max_seats_per_party:
 								sobrantes += p['seats'] - max_seats_per_party
-								print(f"[WARN] 🚨 Tope de escaños aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
+								print(f"[WARN] Tope de escaños aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
 								p['seats'] = max_seats_per_party
 						# 2. Reasignar sobrantes proporcionalmente a los partidos que no han alcanzado el tope
 						while sobrantes > 0:
@@ -330,13 +330,13 @@ def simulacion(
 									if ajuste == 0:
 										break
 					else:
-						print(f"[DEBUG] ❌ No se aplica tope de escaños (valor={max_seats_per_party})")
+						print(f"[DEBUG] No se aplica tope de escaños (valor={max_seats_per_party})")
 				else:
-					print(f"[DEBUG] ❌ No se aplica tope de escaños para cámara: {camara_lower}")
+					print(f"[DEBUG] No se aplica tope de escaños para cámara: {camara_lower}")
 				
 				# Recalcular totales finales después de aplicar TODOS los filtros
 				total_curules = sum([p["seats"] for p in seat_chart]) or 1
-				print(f"[DEBUG] 🏁 RESULTADO FINAL después de sobrerrepresentación y tope:")
+				print(f"[DEBUG] RESULTADO FINAL después de sobrerrepresentación y tope:")
 				final_top3 = [{'party': p['party'], 'seats': p['seats']} for p in seat_chart[:3]]
 				print(f"[DEBUG] Top 3 final: {final_top3}, Total escaños: {total_curules}")
 				
@@ -483,249 +483,6 @@ def simulacion(
 				traceback.print_exc()
 				seat_chart = []
 				kpis = {'error': 'Fallo el procesamiento de senadores. Revisa logs y archivos.'}
-			# Define partidos base según año
-			if anio == 2018:
-				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","NA"]
-			elif anio == 2021:
-				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA","PES","RSP","FXM"]
-			elif anio == 2024:
-				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
-			else:
-				partidos_base = ["PAN","PRI","PRD","PVEM","PT","MC","MORENA"]
-			# Selecciona archivo y siglado
-			if anio == 2018:
-				parquet_path = "data/computos_diputados_2018.parquet"
-				siglado_path = "data/siglado-diputados-2018.csv"
-			elif anio == 2021:
-				parquet_path = "data/computos_diputados_2021.parquet"
-				siglado_path = "data/siglado-diputados-2021.csv"
-			elif anio == 2024:
-				parquet_path = "data/computos_diputados_2024.parquet"
-				siglado_path = "data/siglado-diputados-2024.csv"
-			else:
-				parquet_path = "data/computos_diputados_2021.parquet"
-				siglado_path = "data/siglado-diputados-2021.csv"
-			# Determina magnitud (número de escaños) si viene del frontend
-			print(f"[DEBUG] magnitud recibida en petición: {magnitud}")
-			print(f"[DEBUG] umbral recibido en petición: {umbral}")
-			max_seats = magnitud if magnitud is not None else 300
-			# Determinar sistema y escaños MR/RP
-			sistema_tipo = sistema.lower() if sistema else 'mixto'
-			mr_seats = mixto_mr_seats if mixto_mr_seats is not None else (max_seats // 2 if sistema_tipo == 'mixto' else (max_seats if sistema_tipo == 'mr' else 0))
-			rp_seats = mixto_rp_seats if mixto_rp_seats is not None else (max_seats - mr_seats if sistema_tipo == 'mixto' else (max_seats if sistema_tipo == 'rp' else 0))
-			print(f"[DEBUG] sistema: {sistema_tipo}, MR: {mr_seats}, RP: {rp_seats}, Total: {max_seats}")
-			try:
-				resultado_asignadip = procesar_diputados_parquet(
-					parquet_path, partidos_base, anio, path_siglado=siglado_path, max_seats=max_seats,
-					sistema=sistema_tipo, mr_seats=mr_seats, rp_seats=rp_seats,
-					regla_electoral=regla_electoral, quota_method=quota_method, divisor_method=divisor_method, umbral=umbral
-				)
-				# Validación robusta del tipo de resultado_asignadip
-				if not isinstance(resultado_asignadip, dict):
-					raise ValueError(f"Error interno: el resultado de asignación de escaños no es un diccionario. Tipo recibido: {type(resultado_asignadip)}. Valor: {resultado_asignadip}")
-				
-				# Selecciona el dict correcto según sistema
-				if sistema_tipo == 'mr':
-					dict_escanos = resultado_asignadip.get('mr', {})
-					dict_votos = resultado_asignadip.get('votos', {})
-				elif sistema_tipo == 'rp':
-					dict_escanos = resultado_asignadip.get('rp', {})
-					dict_votos = resultado_asignadip.get('votos', {})
-				else:
-					dict_escanos = resultado_asignadip.get('tot', {})
-					dict_votos = resultado_asignadip.get('votos', {})
-				
-				if not isinstance(dict_escanos, dict):
-					raise ValueError(f"Error interno: el resultado de escaños para el sistema '{sistema_tipo}' no es un diccionario. Tipo recibido: {type(dict_escanos)}. Valor: {dict_escanos}")
-				
-				total_curules = sum(dict_escanos.values()) or 1
-				seat_chart = [
-					{
-						"party": partido,
-						"seats": int(escanos),
-						"color": PARTY_COLORS.get(partido, "#888"),
-						"percent": round(100 * (escanos / total_curules), 2),
-						"votes": dict_votos.get(partido, 0)
-					}
-					for partido, escanos in dict_escanos.items() if int(escanos) > 0
-				]
-				
-				# Aplicar filtro de umbral si está definido
-				logging.debug(f"[DEBUG] umbral recibido en petición: {umbral}")
-				if umbral is not None and umbral > 0:
-					logging.debug(f"[DEBUG] Aplicando filtro de umbral: {umbral}")
-					seat_chart = aplicar_umbral(seat_chart, umbral)
-					# Validar suma de votos tras filtros
-					total_votos_filtrados = sum([p.get('votes', 0) for p in seat_chart])
-					if total_votos_filtrados == 0:
-						logging.error("[ERROR] La suma de votos tras aplicar umbral es cero. No se pueden calcular escaños.")
-						return JSONResponse(
-							content={
-								"error": "La suma de votos tras aplicar el umbral es cero. No se pueden calcular escaños.",
-								"seatChart": [],
-								"kpis": {},
-								"tabla": []
-							},
-							headers={"Access-Control-Allow-Origin": "*"},
-							status_code=400
-						)
-				else:
-					logging.debug("[DEBUG] No se aplica filtro de umbral (None, vacío o 0)")
-				
-				# Aplicar límite de sobrerrepresentación solo para Diputados
-				logging.debug(f"[DEBUG] sobrerrepresentacion recibida en petición: {sobrerrepresentacion}")
-				if camara_lower == "diputados":
-					if sobrerrepresentacion is not None and sobrerrepresentacion > 0:
-						limite_sobre = sobrerrepresentacion
-						if limite_sobre >= 1:
-							logging.warning(f"[WARN] El límite de sobrerrepresentación recibido es {limite_sobre}, se interpreta como porcentaje: {limite_sobre/100}")
-							limite_sobre = limite_sobre / 100
-						logging.debug(f"[DEBUG] Aplicando límite de sobrerrepresentación: {limite_sobre}")
-						seat_chart = aplicar_limite_sobrerrepresentacion(seat_chart, limite_sobre)
-					else:
-						logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación (None, vacío o 0)")
-				else:
-					logging.debug("[DEBUG] No se aplica límite de sobrerrepresentación para cámara distinta a Diputados")
-				
-				# Aplicar tope de escaños por partido si está definido
-				logging.debug(f"[DEBUG] max_seats_per_party (Diputados): {max_seats_per_party}")
-				if max_seats_per_party is not None and max_seats_per_party > 0:
-					sobrantes = 0
-					# 1. Recortar partidos que superan el tope y acumular sobrantes
-					for p in seat_chart:
-						if p['seats'] > max_seats_per_party:
-							sobrantes += p['seats'] - max_seats_per_party
-							logging.warning(f"[WARN] Tope de escaños por partido aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
-							p['seats'] = max_seats_per_party
-					# 2. Reasignar sobrantes proporcionalmente a los partidos que no han alcanzado el tope
-					while sobrantes > 0:
-						elegibles = [p for p in seat_chart if p['seats'] < max_seats_per_party]
-						if not elegibles:
-							break
-						total_votos_elegibles = sum(p.get('votes', 0) for p in elegibles)
-						if total_votos_elegibles == 0:
-							for p in elegibles:
-								if sobrantes == 0:
-									break
-								p['seats'] += 1
-								sobrantes -= 1
-							break
-						asignaciones = []
-						for p in elegibles:
-							asignar = min(sobrantes, max_seats_per_party - p['seats'])
-							prop = p.get('votes', 0) / total_votos_elegibles
-							seats_to_add = min(asignar, int(round(prop * sobrantes)))
-							asignaciones.append(seats_to_add)
-						total_asignados = sum(asignaciones)
-						faltan = sobrantes - total_asignados
-						for i, p in enumerate(elegibles):
-							if faltan <= 0:
-								break
-							if p['seats'] + asignaciones[i] < max_seats_per_party:
-								asignaciones[i] += 1
-								faltan -= 1
-						for i, p in enumerate(elegibles):
-							p['seats'] += asignaciones[i]
-							sobrantes -= asignaciones[i]
-					# Ajuste final: asegurar que la suma total de escaños no cambió
-					total_curules_after_cap = sum(p['seats'] for p in seat_chart)
-					ajuste = total_curules_after_cap - max_seats
-					if ajuste != 0:
-						if ajuste > 0:
-							for p in sorted(seat_chart, key=lambda x: -x['seats']):
-								quitar = min(ajuste, p['seats'])
-								p['seats'] -= quitar
-								ajuste -= quitar
-								if ajuste == 0:
-									break
-						elif ajuste < 0:
-							for p in sorted(seat_chart, key=lambda x: x['seats']):
-								p['seats'] += 1
-								ajuste += 1
-								if ajuste == 0:
-									break
-				# Aplicar tope de escaños por partido si está definido y reasignar sobrantes
-				logging.debug(f"[DEBUG] max_seats_per_party (Diputados): {max_seats_per_party}")
-				if max_seats_per_party is not None and max_seats_per_party > 0:
-					sobrantes = 0
-					# 1. Recortar partidos que superan el tope y acumular sobrantes
-					for p in seat_chart:
-						if p['seats'] > max_seats_per_party:
-							sobrantes += p['seats'] - max_seats_per_party
-							logging.warning(f"[WARN] Tope de escaños por partido aplicado: {p['party']} tenía {p['seats']} → {max_seats_per_party}")
-							p['seats'] = max_seats_per_party
-					# 2. Reasignar sobrantes proporcionalmente a los partidos que no han alcanzado el tope
-					while sobrantes > 0:
-						elegibles = [p for p in seat_chart if p['seats'] < max_seats_per_party]
-						if not elegibles:
-							break
-						total_votos_elegibles = sum(p['votes'] for p in elegibles)
-						if total_votos_elegibles == 0:
-							for p in elegibles:
-								if sobrantes == 0:
-									break
-								p['seats'] += 1
-								sobrantes -= 1
-							break
-						asignaciones = []
-						for p in elegibles:
-							asignar = min(sobrantes, max_seats_per_party - p['seats'])
-							prop = p['votes'] / total_votos_elegibles
-							seats_to_add = min(asignar, int(round(prop * sobrantes)))
-							asignaciones.append(seats_to_add)
-						total_asignados = sum(asignaciones)
-						faltan = sobrantes - total_asignados
-						for i, p in enumerate(elegibles):
-							if faltan <= 0:
-								break
-							if p['seats'] + asignaciones[i] < max_seats_per_party:
-								asignaciones[i] += 1
-								faltan -= 1
-						for i, p in enumerate(elegibles):
-							p['seats'] += asignaciones[i]
-							sobrantes -= asignaciones[i]
-					# Ajuste final: asegurar que la suma total de escaños no cambió
-					total_curules = sum(p['seats'] for p in seat_chart)
-					ajuste = total_curules - (magnitud if magnitud is not None else 300)
-					if ajuste != 0:
-						if ajuste > 0:
-							for p in sorted(seat_chart, key=lambda x: -x['seats']):
-								quitar = min(ajuste, p['seats'] - 0)
-								p['seats'] -= quitar
-								ajuste -= quitar
-								if ajuste == 0:
-									break
-						elif ajuste < 0:
-							for p in sorted(seat_chart, key=lambda x: x['seats']):
-								p['seats'] += 1
-								ajuste += 1
-								if ajuste == 0:
-									break
-				
-				# Recalcular totales finales después de aplicar TODOS los filtros
-				total_curules = sum([p["seats"] for p in seat_chart]) or 1
-				
-				# Recalcular porcentajes después de todos los filtros
-				for p in seat_chart:
-					p["percent"] = round(100 * (p["seats"] / total_curules), 2)
-				
-				# Calcular KPIs finales
-				votos = [p.get('votes', 0) for p in seat_chart]
-				curules = [p.get('seats', 0) for p in seat_chart]
-				
-				kpis = {
-					"total_seats": total_curules,
-					"mae_votos_vs_escanos": safe_mae(votos, curules),
-					"gallagher": safe_gallagher(votos, curules),
-					"total_votos": sum(votos)
-				}
-				
-			except Exception as e:
-				import traceback
-				print(f"[ERROR] Procesando diputados: {e}")
-				traceback.print_exc()
-				seat_chart = []
-				kpis = {'error': 'Fallo el procesamiento de diputados. Revisa logs y archivos.'}
 	else:
 		# Lógica para modelos vigente, rp, mr, mixto usando archivos resumen
 		try:
